@@ -333,6 +333,11 @@
     <string name="clear_search">Очистить поиск</string>
 
     <!-- Updates -->
+    <string name="check_for_updates">Проверить обновления</string>
+    <string name="update_checking">Проверка…</string>
+    <string name="update_up_to_date">У вас последняя версия, %1$s</string>
+    <string name="update_check_failed">Не удалось проверить обновления, попробуйте позже</string>
+    <string name="updates_release_only">Доступно только в release-сборке</string>
     <string name="update_available_title">Доступна версия TimeGrip %1$s</string>
     <string name="update_available_message">У вас установлена версия %1$s. Скачать и установить обновление?</string>
     <string name="update_download">Обновить</string>

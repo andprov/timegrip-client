@@ -3,7 +3,7 @@ package ru.timegrip.app.data.update
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.core.content.FileProvider
 import androidx.core.content.getSystemService
 import kotlinx.coroutines.CoroutineScope
@@ -49,6 +49,9 @@ sealed interface UpdateState {
     data class Failed(val update: AppUpdate) : UpdateState
 }
 
+/** Outcome of the check the user started from the account screen. */
+enum class CheckStatus { IDLE, CHECKING, UP_TO_DATE, FAILED }
+
 /**
  * The app is distributed as an APK on GitHub releases, so it updates itself:
  * the latest release is checked once per process, and on the user's consent
@@ -71,13 +74,19 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
     private val _dialogHidden = MutableStateFlow(false)
     val dialogHidden: StateFlow<Boolean> = _dialogHidden.asStateFlow()
 
+    private val _checkStatus = MutableStateFlow(CheckStatus.IDLE)
+    val checkStatus: StateFlow<CheckStatus> = _checkStatus.asStateFlow()
+
+    /** Debug builds have their own application id and key, so a release APK would not replace them. */
+    val isSupported = !BuildConfig.DEBUG
+
     private var checked = false
     private var downloadId: Long? = null
     private var watcher: Job? = null
 
-    /** Debug builds have their own application id and key, so a release APK would not replace them. */
+    /** The silent check on launch: failures wait for the next launch. */
     fun checkOnce() {
-        if (checked || BuildConfig.DEBUG) return
+        if (checked || !isSupported) return
         checked = true
         scope.launch {
             removeLeftoverDownloads()
@@ -86,11 +95,36 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                // No network or GitHub is unreachable: try again on the next launch.
                 null
             }
-            if (update != null && _state.value == UpdateState.None) _state.value = UpdateState.Available(update)
+            offer(update)
         }
+    }
+
+    /** Started by the user: brings back the dialog of an update in progress, or checks GitHub again. */
+    fun checkNow() {
+        if (!isSupported || _checkStatus.value == CheckStatus.CHECKING) return
+        checked = true
+        if (_state.value != UpdateState.None) {
+            _dialogHidden.value = false
+            return
+        }
+        _checkStatus.value = CheckStatus.CHECKING
+        scope.launch {
+            _checkStatus.value = try {
+                val update = fetchLatest()
+                offer(update)
+                if (update == null) CheckStatus.UP_TO_DATE else CheckStatus.IDLE
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                CheckStatus.FAILED
+            }
+        }
+    }
+
+    private fun offer(update: AppUpdate?) {
+        if (update != null && _state.value == UpdateState.None) _state.value = UpdateState.Available(update)
     }
 
     fun download() {
@@ -101,7 +135,7 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
         }
         val fileName = "TimeGrip_v${update.version}.apk"
         File(context.getExternalFilesDir(UPDATES_DIR), fileName).delete()
-        val request = DownloadManager.Request(Uri.parse(update.apkUrl))
+        val request = DownloadManager.Request(update.apkUrl.toUri())
             .setTitle(context.getString(R.string.update_notification_title, update.version))
             .setMimeType(APK_MIME_TYPE)
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
@@ -149,7 +183,7 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
             }
             when (status) {
                 DownloadManager.STATUS_SUCCESSFUL -> {
-                    val apk = localUri?.let { Uri.parse(it).path }?.let(::File)
+                    val apk = localUri?.toUri()?.path?.let(::File)
                     _state.value = if (apk != null && apk.exists() && matchesChecksum(apk, update.sha256)) {
                         UpdateState.ReadyToInstall(update, apk)
                     } else {

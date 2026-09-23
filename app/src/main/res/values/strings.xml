@@ -322,6 +322,11 @@
     <string name="clear_search">Clear search</string>
 
     <!-- Updates -->
+    <string name="check_for_updates">Check for updates</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_up_to_date">You have the latest version, %1$s</string>
+    <string name="update_check_failed">Could not check for updates, try again later</string>
+    <string name="updates_release_only">Available in release builds only</string>
     <string name="update_available_title">TimeGrip %1$s is available</string>
     <string name="update_available_message">You have version %1$s. Download and install the update?</string>
     <string name="update_download">Update</string>

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,12 +69,14 @@ import ru.timegrip.app.data.prefs.SettingsStore
 import ru.timegrip.app.data.repository.AccountRepository
 import ru.timegrip.app.data.repository.AuthRepository
 import ru.timegrip.app.data.sync.SyncManager
+import ru.timegrip.app.data.update.CheckStatus
 import ru.timegrip.app.domain.AppLocale
 import ru.timegrip.app.domain.Session
 import ru.timegrip.app.domain.ThemePreference
 import ru.timegrip.app.domain.TimeFormat
 import ru.timegrip.app.domain.formatDateTime
 import ru.timegrip.app.ui.common.Banner
+import ru.timegrip.app.ui.common.LocalAppContainer
 import ru.timegrip.app.ui.common.ErrorBanner
 import ru.timegrip.app.ui.common.PanelCard
 import ru.timegrip.app.ui.common.PasswordField
@@ -209,6 +212,8 @@ fun AccountScreen() {
     val theme by vm.theme.collectAsStateWithLifecycle()
     val apiUrl by vm.apiBaseUrl.collectAsStateWithLifecycle()
     val online by vm.isOnline.collectAsStateWithLifecycle()
+    val updater = LocalAppContainer.current.appUpdater
+    val updateCheck by updater.checkStatus.collectAsStateWithLifecycle()
     val user = session.user ?: return
     var dialog by rememberSaveable { mutableStateOf<AccountDialog?>(null) }
     var sessionsExpanded by rememberSaveable { mutableStateOf(false) }
@@ -321,6 +326,19 @@ fun AccountScreen() {
                 PanelCard(contentPadding = PaddingValues(vertical = 4.dp)) {
                     Column {
                         SettingRow(Icons.Outlined.Dns, stringResource(R.string.server_row), apiUrl)
+                        SettingRow(
+                            icon = Icons.Outlined.SystemUpdate,
+                            title = stringResource(R.string.check_for_updates),
+                            value = when {
+                                !updater.isSupported -> stringResource(R.string.updates_release_only)
+                                updateCheck == CheckStatus.CHECKING -> stringResource(R.string.update_checking)
+                                !online -> needsNetwork
+                                updateCheck == CheckStatus.UP_TO_DATE -> stringResource(R.string.update_up_to_date, BuildConfig.VERSION_NAME)
+                                updateCheck == CheckStatus.FAILED -> stringResource(R.string.update_check_failed)
+                                else -> stringResource(R.string.app_version, BuildConfig.VERSION_NAME)
+                            },
+                            enabled = updater.isSupported && online && updateCheck != CheckStatus.CHECKING,
+                        ) { updater.checkNow() }
                         SettingRow(
                             icon = Icons.AutoMirrored.Outlined.Logout,
                             title = stringResource(R.string.sign_out),
