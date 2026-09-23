@@ -20,6 +20,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val container = (application as TimeGripApplication).container
+        // Only when the app is opened: the process also starts for background sync.
+        container.appUpdater.checkOnce()
         setContent {
             val theme by container.settingsStore.theme.collectAsStateWithLifecycle()
             val dark = isDarkTheme(theme, isSystemInDarkTheme())

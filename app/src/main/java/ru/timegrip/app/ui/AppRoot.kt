@@ -9,6 +9,7 @@ import ru.timegrip.app.ui.activation.ActivationScreen
 import ru.timegrip.app.ui.auth.AuthFlow
 import ru.timegrip.app.ui.common.LocalAppContainer
 import ru.timegrip.app.ui.main.MainScreen
+import ru.timegrip.app.ui.update.UpdateDialog
 
 /** Signed out → auth; signed in but not activated → activation; otherwise the app. */
 @Composable
@@ -27,4 +28,5 @@ fun AppRoot() {
         !user.isActive -> ActivationScreen()
         else -> MainScreen()
     }
+    UpdateDialog()
 }

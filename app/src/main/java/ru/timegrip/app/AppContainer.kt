@@ -16,6 +16,7 @@ import ru.timegrip.app.data.repository.TimerRepository
 import ru.timegrip.app.data.sync.Outbox
 import ru.timegrip.app.data.sync.SyncEngine
 import ru.timegrip.app.data.sync.SyncManager
+import ru.timegrip.app.data.update.AppUpdater
 import ru.timegrip.app.notification.RunningTimerNotifier
 
 /** Manual dependency injection: every long-lived object of the app, wired once. */
@@ -48,4 +49,6 @@ class AppContainer(context: Context) {
     val syncIssuesRepository = SyncIssuesRepository(database, syncEngine, syncManager)
 
     val runningTimerNotifier = RunningTimerNotifier(context, timerRepository, projectRepository, appScope)
+
+    val appUpdater = AppUpdater(context, appScope)
 }
