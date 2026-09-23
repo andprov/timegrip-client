@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tagline">Учёт времени по проектам</string>
+
+    <!-- Navigation -->
+    <string name="nav_dashboard">Панель</string>
+    <string name="nav_projects">Проекты</string>
+    <string name="nav_timers">Таймеры</string>
+    <string name="nav_report">Отчёт</string>
+    <string name="nav_account">Аккаунт</string>
+
+    <!-- Common -->
+    <string name="sign_in">Войти</string>
+    <string name="sign_out">Выйти</string>
+    <string name="sign_up">Зарегистрироваться</string>
+    <string name="create_account">Создать аккаунт</string>
+    <string name="cancel">Отмена</string>
+    <string name="delete">Удалить</string>
+    <string name="save">Сохранить</string>
+    <string name="create">Создать</string>
+    <string name="add">Добавить</string>
+    <string name="apply">Применить</string>
+    <string name="done">Готово</string>
+    <string name="close">Закрыть</string>
+    <string name="retry">Повторить</string>
+    <string name="discard">Отменить изменение</string>
+    <string name="something_went_wrong">Что-то пошло не так</string>
+    <string name="stop">Стоп</string>
+    <string name="start_timer">Запустить таймер</string>
+    <string name="search_projects">Поиск проектов</string>
+    <string name="no_matches">Совпадений нет</string>
+    <plurals name="n_selected">
+        <item quantity="one">Выбрано: %d</item>
+        <item quantity="few">Выбрано: %d</item>
+        <item quantity="many">Выбрано: %d</item>
+        <item quantity="other">Выбрано: %d</item>
+    </plurals>
+    <string name="select_all">Выбрать всё</string>
+    <string name="hour_short">ч</string>
+    <string name="minute_short">м</string>
+    <string name="show_password">Показать пароль</string>
+    <string name="hide_password">Скрыть пароль</string>
+    <string name="requires_network">Нужно подключение к интернету</string>
+
+    <!-- Filters -->
+    <string name="filter_projects">Проекты</string>
+    <string name="filter_billing">Оплата</string>
+    <string name="filter_all">Все</string>
+    <string name="reset">Сбросить</string>
+    <string name="date_range_open_start">Начало</string>
+    <string name="date_range_open_end">Конец</string>
+    <string name="grouping">Группировка</string>
+    <string name="report_view">Вид отчёта</string>
+    <string name="report_menu">Меню отчёта</string>
+    <string name="rounded_short">округлено</string>
+    <string name="all_projects">Все проекты</string>
+    <string name="projects_count">Проекты: %d</string>
+    <string name="billable">Оплачиваемые</string>
+    <string name="non_billable">Неоплачиваемые</string>
+    <string name="status_active">Активные</string>
+    <string name="status_archived">Архивные</string>
+    <string name="show_archived_projects">Показывать архивные</string>
+    <string name="all_dates">Все даты</string>
+    <string name="custom_range">Произвольный период…</string>
+    <string name="period">Период</string>
+    <string name="preset_today">Сегодня</string>
+    <string name="preset_yesterday">Вчера</string>
+    <string name="preset_this_week">Эта неделя</string>
+    <string name="preset_last_week">Прошлая неделя</string>
+    <string name="preset_this_month">Этот месяц</string>
+    <string name="preset_last_month">Прошлый месяц</string>
+    <string name="preset_this_year">Этот год</string>
+    <string name="preset_last_year">Прошлый год</string>
+
+    <!-- Auth -->
+    <string name="email">Email</string>
+    <string name="password">Пароль</string>
+    <string name="confirm_password">Повторите пароль</string>
+    <string name="passwords_do_not_match">Пароли не совпадают</string>
+    <string name="new_password">Новый пароль</string>
+    <string name="reset_code">Код сброса</string>
+    <string name="password_hint">Минимум 5 символов, заглавная буква и цифра.</string>
+    <string name="send_reset_code">Отправить код</string>
+    <string name="forgot_password_question">Забыли пароль?</string>
+    <string name="already_have_account">Уже есть аккаунт? Войти</string>
+    <string name="no_account_yet">Нет аккаунта? Зарегистрироваться</string>
+    <string name="back_to_sign_in">Назад ко входу</string>
+    <string name="have_a_code">Есть код?</string>
+    <string name="reset_code_sent_message">Код для сброса отправлен на почту %s.</string>
+    <string name="forgot_password_title">Забыли пароль</string>
+    <string name="reset_password">Сбросить пароль</string>
+    <string name="password_reset_done">Пароль изменён. Войдите с новым паролем.</string>
+    <string name="server_label">Сервер: %s</string>
+    <string name="server_title">Сервер</string>
+    <string name="server_hint">Адрес API, например https://timegrip.ru/api/</string>
+    <string name="server_invalid">Введите адрес http(s)</string>
+    <string name="server_default">По умолчанию</string>
+    <string name="session_expired_text">Войдите заново, чтобы продолжить.</string>
+    <plurals name="session_expired_pending">
+        <item quantity="one">%d невыгруженное изменение сохранено на устройстве и будет отправлено после входа в тот же аккаунт.</item>
+        <item quantity="few">%d невыгруженных изменения сохранены на устройстве и будут отправлены после входа в тот же аккаунт.</item>
+        <item quantity="many">%d невыгруженных изменений сохранены на устройстве и будут отправлены после входа в тот же аккаунт.</item>
+        <item quantity="other">%d невыгруженного изменения сохранены на устройстве и будут отправлены после входа в тот же аккаунт.</item>
+    </plurals>
+
+    <!-- Activation -->
+    <string name="activation_title">Активируйте аккаунт</string>
+    <string name="activation_description">Введите код активации, отправленный на %s, чтобы открыть проекты и таймеры.</string>
+    <string name="activation_code_label">Код активации</string>
+    <string name="activate">Активировать</string>
+    <string name="code_resent">Новый код отправлен.</string>
+    <string name="resend_code">Отправить код повторно</string>
+    <string name="resend_code_in">Отправить код повторно через %s</string>
+
+    <!-- Dashboard -->
+    <string name="total_time">Общее время</string>
+    <string name="total_amount">Общая сумма</string>
+    <string name="top_project_by_time">Топ-проект (время)</string>
+    <string name="top_project_by_amount">Топ-проект (сумма)</string>
+    <string name="time_by_project">Время по проектам</string>
+    <string name="no_time_entries">Записи времени не найдены.</string>
+    <string name="time_by_hour">Время по часам</string>
+    <string name="time_by_day">Время по дням</string>
+    <string name="time_by_month">Время по месяцам</string>
+    <string name="other_projects">Другие</string>
+    <string name="unknown_project">Неизвестный проект</string>
+
+    <!-- Projects -->
+    <string name="new_project">Новый проект</string>
+    <string name="edit_project">Изменить проект</string>
+    <string name="no_projects_yet">Пока нет проектов. Создайте первый, чтобы начать учёт времени.</string>
+    <string name="no_projects_match">Нет проектов, подходящих под фильтр.</string>
+    <string name="per_hour">%s / час</string>
+    <string name="rounded_to_hour_suffix">округление до часа</string>
+    <string name="no_rate">Без ставки</string>
+    <string name="archived_badge">В архиве</string>
+    <string name="delete_project">Удалить проект</string>
+    <string name="delete_project_message">Удалить проект «%s»? Это действие необратимо.</string>
+    <string name="delete_blocked_by_running_timer">По этому проекту запущен таймер. Остановите его, чтобы удалить проект.</string>
+    <string name="filter_match_notice">«%s» больше не соответствует текущим фильтрам.</string>
+    <string name="project_name">Название</string>
+    <string name="project_color">Цвет</string>
+    <string name="hourly_rate">Почасовая ставка</string>
+    <string name="hourly_rate_placeholder">Оставьте пустым для неоплачиваемого проекта</string>
+    <string name="round_to_hour_label">Округлять оплачиваемую длительность до часа</string>
+    <string name="project_status">Статус</string>
+    <string name="project_status_active">Активный</string>
+    <string name="project_status_archived">Архивный</string>
+
+    <!-- Timers -->
+    <string name="add_time_entry">Добавить запись</string>
+    <string name="edit_time_entry">Изменить запись</string>
+    <string name="running">Идёт</string>
+    <string name="delete_time_entry">Удалить запись</string>
+    <string name="delete_time_entry_message">Удалить эту запись времени? Это действие необратимо.</string>
+    <string name="delete_time_entries">Удалить записи времени</string>
+    <plurals name="delete_time_entries_message">
+        <item quantity="one">Удалить %d выбранную запись времени? Это действие необратимо.</item>
+        <item quantity="few">Удалить %d выбранные записи времени? Это действие необратимо.</item>
+        <item quantity="many">Удалить %d выбранных записей времени? Это действие необратимо.</item>
+        <item quantity="other">Удалить выбранные записи времени (%d)? Это действие необратимо.</item>
+    </plurals>
+    <string name="delete_selected">Удалить выбранные</string>
+    <string name="project">Проект</string>
+    <string name="select_project">Выберите проект</string>
+    <string name="project_required">Укажите проект.</string>
+    <string name="start_time">Начало</string>
+    <string name="start_time_required">Укажите время начала.</string>
+    <string name="end_time">Завершение</string>
+    <string name="end_time_required">Укажите время завершения.</string>
+    <string name="date">Дата</string>
+    <string name="time">Время</string>
+    <string name="total_duration">Итого: %s</string>
+    <string name="no_projects_yet_short">У вас пока нет проектов. Сначала создайте проект.</string>
+    <string name="create_project_first">Сначала создайте активный проект</string>
+
+    <!-- Report -->
+    <string name="columns_title">Поля</string>
+    <string name="no_grouping">Без группировки</string>
+    <string name="group_by_project">По проектам</string>
+    <string name="group_by_date">По датам</string>
+    <string name="pick_column">Выберите хотя бы одно поле или отключите группировку по нему.</string>
+    <string name="export_csv">Экспорт в CSV</string>
+    <string name="export_done">Отчёт сохранён</string>
+    <string name="report_entries_word">записей</string>
+    <string name="total">Итого</string>
+    <string name="col_date">Дата</string>
+    <string name="col_project">Проект</string>
+    <string name="col_start">Начало</string>
+    <string name="col_end">Завершение</string>
+    <string name="col_duration">Длительность</string>
+    <string name="col_rounded">Округление</string>
+    <string name="col_amount">Сумма</string>
+
+    <!-- Account -->
+    <string name="signed_in_as">Вы вошли как</string>
+    <string name="change_email">Изменить email</string>
+    <string name="change_password">Изменить пароль</string>
+    <string name="theme">Тема</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="theme_system">Системная</string>
+    <string name="time_format">Формат времени</string>
+    <string name="time_format_12h">12-часовой</string>
+    <string name="time_format_24h">24-часовой</string>
+    <string name="language">Язык</string>
+    <string name="active_sessions">Активные сессии</string>
+    <string name="active_sessions_desc">Устройства, на которых сейчас выполнен вход в аккаунт.</string>
+    <string name="log_out_everywhere">Выйти везде</string>
+    <plurals name="sessions_count">
+        <item quantity="one">%d сессия</item>
+        <item quantity="few">%d сессии</item>
+        <item quantity="many">%d сессий</item>
+        <item quantity="other">%d сессии</item>
+    </plurals>
+    <string name="unknown_device">Неизвестное устройство</string>
+    <string name="unknown_ip">Неизвестный IP</string>
+    <string name="revoke">Отозвать</string>
+    <string name="delete_account_title">Удалить аккаунт</string>
+    <string name="delete_account_desc">Опасная зона: это необратимо удалит аккаунт и все данные.</string>
+    <string name="delete_account_confirm">Это необратимо удалит аккаунт и все данные. Действие нельзя отменить.</string>
+    <string name="logout_everywhere_confirm">Это отзовёт все сессии, включая текущую. Так как текущий вход остаётся действительным до истечения срока, это устройство может продолжать работать ещё несколько минут перед выходом.</string>
+    <string name="new_email">Новый email</string>
+    <string name="current_password">Текущий пароль</string>
+    <string name="update_email">Обновить email</string>
+    <string name="update_password">Обновить пароль</string>
+    <string name="server_row">Сервер</string>
+    <string name="app_version">Версия %s</string>
+    <string name="sign_out_confirm_title">Выйти из аккаунта?</string>
+    <plurals name="sign_out_pending_message">
+        <item quantity="one">%d изменение ещё не выгружено на сервер и будет потеряно.</item>
+        <item quantity="few">%d изменения ещё не выгружены на сервер и будут потеряны.</item>
+        <item quantity="many">%d изменений ещё не выгружены на сервер и будут потеряны.</item>
+        <item quantity="other">%d изменения ещё не выгружены на сервер и будут потеряны.</item>
+    </plurals>
+
+    <!-- Sync -->
+    <string name="sync_title">Синхронизация</string>
+    <string name="sync_online">В сети</string>
+    <string name="sync_offline">Нет сети — изменения сохраняются на устройстве и будут выгружены, когда связь появится</string>
+    <string name="sync_syncing">Синхронизация…</string>
+    <string name="sync_last">Последняя синхронизация: %s</string>
+    <string name="sync_never">Ещё не синхронизировано</string>
+    <plurals name="sync_pending">
+        <item quantity="one">%d изменение ждёт выгрузки</item>
+        <item quantity="few">%d изменения ждут выгрузки</item>
+        <item quantity="many">%d изменений ждут выгрузки</item>
+        <item quantity="other">%d изменения ждут выгрузки</item>
+    </plurals>
+    <string name="sync_all_synced">Все изменения выгружены</string>
+    <string name="sync_now">Синхронизировать</string>
+    <string name="sync_failed_title">Отклонено сервером</string>
+    <string name="sync_failed_hint">Исправьте запись, повторите отправку после устранения причины или отмените изменение, чтобы вернуть серверную версию.</string>
+    <string name="sync_problem_network">Нет связи с сервером</string>
+    <string name="sync_problem_session">Сессия истекла — войдите заново</string>
+    <string name="sync_problem_server">Ошибка сервера: %s</string>
+    <string name="op_project_create">Новый проект</string>
+    <string name="op_project_update">Изменение проекта</string>
+    <string name="op_project_delete">Удаление проекта</string>
+    <string name="op_timer_start">Запуск таймера</string>
+    <string name="op_timer_stop">Остановленный таймер</string>
+    <string name="op_timer_create">Новая запись</string>
+    <string name="op_timer_update">Изменение записи</string>
+    <string name="op_timer_delete">Удаление записи</string>
+    <string name="op_user_time_format">Формат времени</string>
+    <string name="op_user_locale">Язык</string>
+    <string name="sync_mark_pending">Ждёт выгрузки</string>
+    <string name="sync_mark_failed">Отклонено сервером</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_timer">Запущенный таймер</string>
+    <string name="notification_timer_running">Таймер запущен</string>
+
+    <!-- Errors -->
+    <string name="error_network">Нет подключения к интернету</string>
+    <string name="error_required">Заполните это поле</string>
+    <string name="error_name_required">Введите название</string>
+    <string name="error_access_denied">Подтвердите аккаунт, чтобы продолжить</string>
+    <string name="error_activation_code_recently_sent">Код уже отправлен. Новый можно запросить через минуту</string>
+    <string name="error_invalid_activation_code">Неверный или просроченный код</string>
+    <string name="error_invalid_credentials">Неверная почта или пароль</string>
+    <string name="error_invalid_current_password">Неверный текущий пароль</string>
+    <string name="error_invalid_password">Неверный пароль</string>
+    <string name="error_invalid_hourly_rate">Ставка не может быть отрицательной</string>
+    <string name="error_invalid_locale">Недопустимый язык интерфейса</string>
+    <string name="error_invalid_password_reset_code">Неверный или просроченный код</string>
+    <string name="error_invalid_project_color">Недопустимый цвет проекта</string>
+    <string name="error_invalid_project_status">Недопустимый статус проекта</string>
+    <string name="error_invalid_refresh_token">Сессия истекла, войдите заново</string>
+    <string name="error_invalid_time_format">Недопустимый формат времени</string>
+    <string name="error_invalid_timer_range">Некорректный интервал времени</string>
+    <string name="error_start_time_in_future">Начало не может быть в будущем</string>
+    <string name="error_start_time_too_early">Начало не может быть раньше 1900 года</string>
+    <string name="error_end_time_in_future">Завершение не может быть в будущем</string>
+    <string name="error_end_time_before_start">Завершение должно быть позже начала</string>
+    <string name="error_project_archived">Проект в архиве — верните его в активные, чтобы продолжить</string>
+    <string name="error_project_has_running_timer">Сначала остановите запущенный таймер этого проекта</string>
+    <string name="error_project_not_found">Проект не найден</string>
+    <string name="error_refresh_token_not_found">Сессия не найдена</string>
+    <string name="error_timer_already_running">Таймер уже запущен</string>
+    <string name="error_timer_not_found">Запись не найдена</string>
+    <string name="error_timer_not_running">Нет запущенного таймера</string>
+    <string name="error_timer_overlap">Запись пересекается с уже существующей</string>
+    <string name="error_timer_running">Остановите таймер, прежде чем редактировать запись</string>
+    <string name="error_too_many_requests">Слишком много запросов, попробуйте через минуту</string>
+    <string name="error_unauthorized">Войдите, чтобы продолжить</string>
+    <string name="error_user_already_active">Аккаунт уже активирован</string>
+    <string name="error_user_already_exists">Аккаунт с такой почтой уже существует</string>
+    <string name="error_user_not_found">Пользователь не найден</string>
+    <string name="error_server_unavailable">Сервер недоступен, попробуйте позже</string>
+    <string name="error_weak_password">Пароль не соответствует требованиям</string>
+    <string name="error_password_empty">Введите пароль</string>
+    <string name="error_password_too_short">Минимум 5 символов</string>
+    <string name="error_password_too_long">Пароль слишком длинный</string>
+    <string name="error_password_no_uppercase">Добавьте хотя бы одну заглавную букву</string>
+    <string name="error_password_no_digit">Добавьте хотя бы одну цифру</string>
+    <string name="error_validation_missing">Заполните обязательное поле</string>
+    <string name="error_validation_value_error">Некорректное значение</string>
+    <string name="error_validation_string_type">Значение должно быть строкой</string>
+    <string name="error_validation_int_parsing">Введите целое число</string>
+    <string name="error_validation_bool_parsing">Значение должно быть да или нет</string>
+    <string name="error_validation_uuid_parsing">Некорректный идентификатор</string>
+    <string name="error_validation_timezone_aware">Укажите время с часовым поясом</string>
+    <string name="error_validation_datetime_parsing">Некорректная дата или время</string>
+    <string name="error_validation_decimal_parsing">Введите число</string>
+    <string name="error_validation_decimal_max_digits">Слишком большое число</string>
+    <string name="error_validation_decimal_max_places">Не более двух знаков после запятой</string>
+    <string name="error_validation_greater_than_equal">Значение слишком маленькое</string>
+    <string name="error_validation_less_than_equal">Значение слишком большое</string>
+    <string name="error_validation_too_short">Выберите хотя бы один элемент</string>
+    <string name="error_validation_malformed">Некорректный запрос</string>
+    <string name="error_validation_email">Введите корректный адрес электронной почты</string>
+    <string name="clear_search">Очистить поиск</string>
+</resources>

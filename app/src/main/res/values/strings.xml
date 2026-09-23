@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">TimeGrip</string>
+    <string name="tagline">Track the time you spend on projects</string>
+
+    <!-- Navigation -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_projects">Projects</string>
+    <string name="nav_timers">Timers</string>
+    <string name="nav_report">Report</string>
+    <string name="nav_account">Account</string>
+
+    <!-- Common -->
+    <string name="sign_in">Sign in</string>
+    <string name="sign_out">Sign out</string>
+    <string name="sign_up">Sign up</string>
+    <string name="create_account">Create account</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="save">Save</string>
+    <string name="create">Create</string>
+    <string name="add">Add</string>
+    <string name="apply">Apply</string>
+    <string name="done">Done</string>
+    <string name="close">Close</string>
+    <string name="retry">Retry</string>
+    <string name="discard">Discard</string>
+    <string name="something_went_wrong">Something went wrong</string>
+    <string name="stop">Stop</string>
+    <string name="start_timer">Start timer</string>
+    <string name="search_projects">Search projects</string>
+    <string name="no_matches">No matches</string>
+    <plurals name="n_selected">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="select_all">Select all</string>
+    <string name="hour_short">h</string>
+    <string name="minute_short">m</string>
+    <string name="show_password">Show password</string>
+    <string name="hide_password">Hide password</string>
+    <string name="requires_network">Requires an internet connection</string>
+
+    <!-- Filters -->
+    <string name="filter_projects">Projects</string>
+    <string name="filter_billing">Billing</string>
+    <string name="filter_all">All</string>
+    <string name="reset">Reset</string>
+    <string name="date_range_open_start">Start</string>
+    <string name="date_range_open_end">End</string>
+    <string name="grouping">Grouping</string>
+    <string name="report_view">Report view</string>
+    <string name="report_menu">Report menu</string>
+    <string name="rounded_short">rounded</string>
+    <string name="all_projects">All projects</string>
+    <string name="projects_count">Projects: %d</string>
+    <string name="billable">Billable</string>
+    <string name="non_billable">Non-billable</string>
+    <string name="status_active">Active</string>
+    <string name="status_archived">Archived</string>
+    <string name="show_archived_projects">Show archived</string>
+    <string name="all_dates">All dates</string>
+    <string name="custom_range">Custom range…</string>
+    <string name="period">Period</string>
+    <string name="preset_today">Today</string>
+    <string name="preset_yesterday">Yesterday</string>
+    <string name="preset_this_week">This week</string>
+    <string name="preset_last_week">Last week</string>
+    <string name="preset_this_month">This month</string>
+    <string name="preset_last_month">Last month</string>
+    <string name="preset_this_year">This year</string>
+    <string name="preset_last_year">Last year</string>
+
+    <!-- Auth -->
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm password</string>
+    <string name="passwords_do_not_match">Passwords do not match</string>
+    <string name="new_password">New password</string>
+    <string name="reset_code">Reset code</string>
+    <string name="password_hint">At least 5 characters, with an uppercase letter and a digit.</string>
+    <string name="send_reset_code">Send reset code</string>
+    <string name="forgot_password_question">Forgot password?</string>
+    <string name="already_have_account">Already have an account? Sign in</string>
+    <string name="no_account_yet">No account yet? Sign up</string>
+    <string name="back_to_sign_in">Back to sign in</string>
+    <string name="have_a_code">Have a code?</string>
+    <string name="reset_code_sent_message">Reset code has been emailed to %s.</string>
+    <string name="forgot_password_title">Forgot password</string>
+    <string name="reset_password">Reset password</string>
+    <string name="password_reset_done">Password changed. Sign in with the new password.</string>
+    <string name="server_label">Server: %s</string>
+    <string name="server_title">Server</string>
+    <string name="server_hint">API address, for example https://timegrip.ru/api/</string>
+    <string name="server_invalid">Enter an http(s) address</string>
+    <string name="server_default">Default</string>
+    <string name="session_expired_text">Sign in again to continue.</string>
+    <plurals name="session_expired_pending">
+        <item quantity="one">%d change that was not uploaded is kept on this device and will be uploaded after you sign in to the same account.</item>
+        <item quantity="other">%d changes that were not uploaded are kept on this device and will be uploaded after you sign in to the same account.</item>
+    </plurals>
+
+    <!-- Activation -->
+    <string name="activation_title">Activate your account</string>
+    <string name="activation_description">Enter the activation code we emailed to %s to unlock projects and timers.</string>
+    <string name="activation_code_label">Activation code</string>
+    <string name="activate">Activate</string>
+    <string name="code_resent">A new code has been sent.</string>
+    <string name="resend_code">Resend code</string>
+    <string name="resend_code_in">Resend code in %s</string>
+
+    <!-- Dashboard -->
+    <string name="total_time">Total time</string>
+    <string name="total_amount">Total amount</string>
+    <string name="top_project_by_time">Top project by time</string>
+    <string name="top_project_by_amount">Top project by amount</string>
+    <string name="time_by_project">Time by project</string>
+    <string name="no_time_entries">No time entries found.</string>
+    <string name="time_by_hour">Time by hour</string>
+    <string name="time_by_day">Time by day</string>
+    <string name="time_by_month">Time by month</string>
+    <string name="other_projects">Other</string>
+    <string name="unknown_project">Unknown project</string>
+
+    <!-- Projects -->
+    <string name="new_project">New project</string>
+    <string name="edit_project">Edit project</string>
+    <string name="no_projects_yet">No projects yet. Create one to start tracking time.</string>
+    <string name="no_projects_match">No projects match the filters.</string>
+    <string name="per_hour">%s / hour</string>
+    <string name="rounded_to_hour_suffix">rounded to hour</string>
+    <string name="no_rate">No rate</string>
+    <string name="archived_badge">Archived</string>
+    <string name="delete_project">Delete project</string>
+    <string name="delete_project_message">Delete project “%s”? This action cannot be undone.</string>
+    <string name="delete_blocked_by_running_timer">This project has a running timer. Stop it to delete the project.</string>
+    <string name="filter_match_notice">“%s” no longer matches the current filters.</string>
+    <string name="project_name">Name</string>
+    <string name="project_color">Color</string>
+    <string name="hourly_rate">Hourly rate</string>
+    <string name="hourly_rate_placeholder">Leave empty for a non-billable project</string>
+    <string name="round_to_hour_label">Round billable duration to the hour</string>
+    <string name="project_status">Status</string>
+    <string name="project_status_active">Active</string>
+    <string name="project_status_archived">Archived</string>
+
+    <!-- Timers -->
+    <string name="add_time_entry">Add entry</string>
+    <string name="edit_time_entry">Edit entry</string>
+    <string name="running">Running</string>
+    <string name="delete_time_entry">Delete time entry</string>
+    <string name="delete_time_entry_message">Delete this time entry? This action cannot be undone.</string>
+    <string name="delete_time_entries">Delete time entries</string>
+    <plurals name="delete_time_entries_message">
+        <item quantity="one">Delete %d selected time entry? This action cannot be undone.</item>
+        <item quantity="other">Delete %d selected time entries? This action cannot be undone.</item>
+    </plurals>
+    <string name="delete_selected">Delete selected</string>
+    <string name="project">Project</string>
+    <string name="select_project">Select a project</string>
+    <string name="project_required">A project is required.</string>
+    <string name="start_time">Start</string>
+    <string name="start_time_required">A start time is required.</string>
+    <string name="end_time">End</string>
+    <string name="end_time_required">An end time is required.</string>
+    <string name="date">Date</string>
+    <string name="time">Time</string>
+    <string name="total_duration">Total: %s</string>
+    <string name="no_projects_yet_short">You have no projects yet. Create a project first.</string>
+    <string name="create_project_first">Create an active project first</string>
+
+    <!-- Report -->
+    <string name="columns_title">Fields</string>
+    <string name="no_grouping">No grouping</string>
+    <string name="group_by_project">By project</string>
+    <string name="group_by_date">By date</string>
+    <string name="pick_column">Pick at least one field to show, or turn off grouping by it.</string>
+    <string name="export_csv">Export CSV</string>
+    <string name="export_done">Report saved</string>
+    <string name="report_entries_word">entries</string>
+    <string name="total">Total</string>
+    <string name="col_date">Date</string>
+    <string name="col_project">Project</string>
+    <string name="col_start">Start</string>
+    <string name="col_end">End</string>
+    <string name="col_duration">Duration</string>
+    <string name="col_rounded">Rounded</string>
+    <string name="col_amount">Amount</string>
+
+    <!-- Account -->
+    <string name="signed_in_as">Signed in as</string>
+    <string name="change_email">Change email</string>
+    <string name="change_password">Change password</string>
+    <string name="theme">Theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">System</string>
+    <string name="time_format">Time format</string>
+    <string name="time_format_12h">12-hour</string>
+    <string name="time_format_24h">24-hour</string>
+    <string name="language">Language</string>
+    <string name="active_sessions">Active sessions</string>
+    <string name="active_sessions_desc">Devices currently signed in to your account.</string>
+    <string name="log_out_everywhere">Log out everywhere</string>
+    <plurals name="sessions_count">
+        <item quantity="one">%d session</item>
+        <item quantity="other">%d sessions</item>
+    </plurals>
+    <string name="unknown_device">Unknown device</string>
+    <string name="unknown_ip">Unknown IP</string>
+    <string name="revoke">Revoke</string>
+    <string name="delete_account_title">Delete account</string>
+    <string name="delete_account_desc">Danger zone: this permanently deletes your account and all of its data.</string>
+    <string name="delete_account_confirm">This will permanently delete your account and all of its data. This action cannot be undone.</string>
+    <string name="logout_everywhere_confirm">This revokes every session, including this one. Because the current sign-in stays valid until it naturally expires, this device may keep working for a few minutes before it signs out too.</string>
+    <string name="new_email">New email</string>
+    <string name="current_password">Current password</string>
+    <string name="update_email">Update email</string>
+    <string name="update_password">Update password</string>
+    <string name="server_row">Server</string>
+    <string name="app_version">Version %s</string>
+    <string name="sign_out_confirm_title">Sign out?</string>
+    <plurals name="sign_out_pending_message">
+        <item quantity="one">%d change has not been uploaded yet and will be lost.</item>
+        <item quantity="other">%d changes have not been uploaded yet and will be lost.</item>
+    </plurals>
+
+    <!-- Sync -->
+    <string name="sync_title">Synchronization</string>
+    <string name="sync_online">Online</string>
+    <string name="sync_offline">Offline — changes are saved on this device and uploaded when the connection is back</string>
+    <string name="sync_syncing">Syncing…</string>
+    <string name="sync_last">Last synced: %s</string>
+    <string name="sync_never">Not synced yet</string>
+    <plurals name="sync_pending">
+        <item quantity="one">%d change waiting to upload</item>
+        <item quantity="other">%d changes waiting to upload</item>
+    </plurals>
+    <string name="sync_all_synced">All changes are uploaded</string>
+    <string name="sync_now">Sync now</string>
+    <string name="sync_failed_title">Rejected by the server</string>
+    <string name="sync_failed_hint">Edit the record to fix it, retry after fixing the cause elsewhere, or discard the change to get the server version back.</string>
+    <string name="sync_problem_network">No connection to the server</string>
+    <string name="sync_problem_session">Session expired — sign in again</string>
+    <string name="sync_problem_server">Server error: %s</string>
+    <string name="op_project_create">New project</string>
+    <string name="op_project_update">Project change</string>
+    <string name="op_project_delete">Project deletion</string>
+    <string name="op_timer_start">Timer start</string>
+    <string name="op_timer_stop">Stopped timer</string>
+    <string name="op_timer_create">New time entry</string>
+    <string name="op_timer_update">Time entry change</string>
+    <string name="op_timer_delete">Time entry deletion</string>
+    <string name="op_user_time_format">Time format</string>
+    <string name="op_user_locale">Language</string>
+    <string name="sync_mark_pending">Waiting to upload</string>
+    <string name="sync_mark_failed">Rejected by the server</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_timer">Running timer</string>
+    <string name="notification_timer_running">Timer is running</string>
+
+    <!-- Errors: keys match the API's error codes -->
+    <string name="error_network">No internet connection</string>
+    <string name="error_required">Please fill in this field</string>
+    <string name="error_name_required">Enter a name</string>
+    <string name="error_access_denied">Activate your account to continue</string>
+    <string name="error_activation_code_recently_sent">A code was sent recently. You can request a new one in a minute</string>
+    <string name="error_invalid_activation_code">Invalid or expired code</string>
+    <string name="error_invalid_credentials">Invalid email or password</string>
+    <string name="error_invalid_current_password">Invalid current password</string>
+    <string name="error_invalid_password">Invalid password</string>
+    <string name="error_invalid_hourly_rate">The rate must not be negative</string>
+    <string name="error_invalid_locale">Unsupported interface language</string>
+    <string name="error_invalid_password_reset_code">Invalid or expired code</string>
+    <string name="error_invalid_project_color">Unsupported project color</string>
+    <string name="error_invalid_project_status">Unsupported project status</string>
+    <string name="error_invalid_refresh_token">Your session has expired, sign in again</string>
+    <string name="error_invalid_time_format">Unsupported time format</string>
+    <string name="error_invalid_timer_range">Invalid time range</string>
+    <string name="error_start_time_in_future">The start time cannot be in the future</string>
+    <string name="error_start_time_too_early">The start time cannot be before 1900</string>
+    <string name="error_end_time_in_future">The end time cannot be in the future</string>
+    <string name="error_end_time_before_start">The end time must be after the start time</string>
+    <string name="error_project_archived">This project is archived — restore it to continue</string>
+    <string name="error_project_has_running_timer">Stop the running timer for this project first</string>
+    <string name="error_project_not_found">Project not found</string>
+    <string name="error_refresh_token_not_found">Session not found</string>
+    <string name="error_timer_already_running">A timer is already running</string>
+    <string name="error_timer_not_found">Entry not found</string>
+    <string name="error_timer_not_running">No timer is running</string>
+    <string name="error_timer_overlap">This entry overlaps with an existing one</string>
+    <string name="error_timer_running">Stop the timer before editing this entry</string>
+    <string name="error_too_many_requests">Too many requests, try again in a minute</string>
+    <string name="error_unauthorized">Sign in to continue</string>
+    <string name="error_user_already_active">The account is already activated</string>
+    <string name="error_user_already_exists">An account with this email already exists</string>
+    <string name="error_user_not_found">User not found</string>
+    <string name="error_server_unavailable">The server is unavailable, try again later</string>
+    <string name="error_weak_password">The password does not meet the requirements</string>
+    <string name="error_password_empty">Enter a password</string>
+    <string name="error_password_too_short">Must be at least 5 characters</string>
+    <string name="error_password_too_long">The password is too long</string>
+    <string name="error_password_no_uppercase">Add at least one uppercase letter</string>
+    <string name="error_password_no_digit">Add at least one digit</string>
+    <string name="error_validation_missing">This field is required</string>
+    <string name="error_validation_value_error">Invalid value</string>
+    <string name="error_validation_string_type">The value must be text</string>
+    <string name="error_validation_int_parsing">Enter a whole number</string>
+    <string name="error_validation_bool_parsing">The value must be yes or no</string>
+    <string name="error_validation_uuid_parsing">Invalid identifier</string>
+    <string name="error_validation_timezone_aware">Include the time zone</string>
+    <string name="error_validation_datetime_parsing">Invalid date or time</string>
+    <string name="error_validation_decimal_parsing">Enter a number</string>
+    <string name="error_validation_decimal_max_digits">The number is too large</string>
+    <string name="error_validation_decimal_max_places">No more than two decimal places</string>
+    <string name="error_validation_greater_than_equal">The value is too small</string>
+    <string name="error_validation_less_than_equal">The value is too large</string>
+    <string name="error_validation_too_short">Select at least one item</string>
+    <string name="error_validation_malformed">Malformed request</string>
+    <string name="error_validation_email">Enter a valid email address</string>
+    <string name="clear_search">Clear search</string>
+</resources>
