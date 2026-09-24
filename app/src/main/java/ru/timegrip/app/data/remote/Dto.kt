@@ -122,7 +122,11 @@ data class ProjectCreateBody(
 )
 
 @Serializable
-data class TimerStartBody(@SerialName("project_id") val projectId: String)
+data class TimerStartBody(
+    @SerialName("project_id") val projectId: String,
+    /** When a timer started offline was really started; omitted, the server starts it now. */
+    @SerialName("start_time") val startTime: String? = null,
+)
 
 @Serializable
 data class TimerCreateBody(

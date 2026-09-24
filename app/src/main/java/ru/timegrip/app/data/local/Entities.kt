@@ -4,6 +4,7 @@ import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * Records are keyed by a local id so they can be created offline. [serverId]
@@ -45,7 +46,22 @@ data class TimerEntity(
     val roundToHour: Boolean,
     val billableAmount: String?,
     val deleted: Boolean = false,
+    /**
+     * Where on this phone's monotonic clock the timer was started and stopped,
+     * for times this phone recorded itself; null for times typed in by the
+     * user or taken from the server. Lets the sync put them on the server's
+     * clock however this phone's clock is set.
+     */
+    @Embedded(prefix = "startClock_") val startClock: MonoStamp? = null,
+    @Embedded(prefix = "endClock_") val endClock: MonoStamp? = null,
 )
+
+/**
+ * A moment on the phone's monotonic clock: time since boot, which neither a
+ * clock change nor a time zone moves. Only comparable within the same [boot].
+ */
+@Serializable
+data class MonoStamp(val boot: Int, val elapsed: Long)
 
 /**
  * One local change waiting to be replayed against the API, in [seq] order.

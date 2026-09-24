@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import ru.timegrip.app.data.local.AppDatabase
+import ru.timegrip.app.data.local.MonoStamp
 import ru.timegrip.app.data.local.OutboxEntity
 import ru.timegrip.app.data.local.OutboxState
 import ru.timegrip.app.data.local.ProjectEntity
@@ -17,6 +18,7 @@ import ru.timegrip.app.data.remote.ApiException
 import ru.timegrip.app.data.remote.LocaleBody
 import ru.timegrip.app.data.remote.ProjectCreateBody
 import ru.timegrip.app.data.remote.ProjectDto
+import ru.timegrip.app.data.remote.ServerClock
 import ru.timegrip.app.data.remote.TimeFormatBody
 import ru.timegrip.app.data.remote.TimeGripApi
 import ru.timegrip.app.data.remote.TimerCreateBody
@@ -52,6 +54,7 @@ class SyncEngine(
     private val api: TimeGripApi,
     private val sessionStore: SessionStore,
     private val json: Json,
+    private val serverClock: ServerClock,
 ) {
     private val projectDao = db.projectDao()
     private val timerDao = db.timerDao()
@@ -209,27 +212,38 @@ class SyncEngine(
         db.withTransaction { removeProjectLocally(op.entityId) }
     }
 
+    /**
+     * Starts the timer on the server with the moment it was really started, so
+     * a timer started offline shows up running, with the right time, as soon
+     * as the phone is back online. A server that does not know `start_time`
+     * yet starts it now instead; the stop moves the start back.
+     */
     private suspend fun startTimer(op: OutboxEntity) {
         val timer = timerDao.get(op.entityId)
         val payload = decode<TimerPayload>(op.payload)
-        // Started offline (or long ago): the server would stamp the wrong
-        // start, so the entry stays local until it is stopped.
-        if (timer == null || timer.serverId != null ||
-            System.currentTimeMillis() - payload.startTime > START_GRACE_MS
-        ) {
+        // Gone, already there, or stopped before it got there: then the stop
+        // creates the whole entry at once.
+        if (timer == null || timer.serverId != null || timer.endTime != null) {
             outboxDao.delete(op.seq)
             return
         }
         val projectServerId = projectServerId(payload.projectId)
+        val start = serverTime(payload.startTime, payload.startClock)
+        suspend fun startAt(start: Long) = api.startTimer(TimerStartBody(projectServerId, isoString(start)))
         val started = try {
-            call { api.startTimer(TimerStartBody(projectServerId)) }
+            try {
+                call { startAt(start) }
+            } catch (error: ApiException) {
+                val (movedStart, _) = behindServerClock(error, start, start) ?: throw error
+                call { startAt(movedStart) }
+            }
         } catch (error: ApiException) {
             if (error.code != "timer_already_running") throw error
             // Either our own start whose response got lost, or a timer started
             // elsewhere; in the latter case ours stays local until stopped.
             val running = fetchRunning()
             if (running == null || running.projectId != projectServerId ||
-                abs(parseInstant(running.startTime).toEpochMilli() - payload.startTime) > START_GRACE_MS ||
+                abs(parseInstant(running.startTime).toEpochMilli() - start) > START_GRACE_MS ||
                 timerDao.getByServerId(running.id) != null
             ) {
                 outboxDao.delete(op.seq)
@@ -276,9 +290,10 @@ class SyncEngine(
     private suspend fun correctTimes(stopped: TimerDto, payload: TimerPayload): TimerDto {
         val serverEnd = stopped.endTime?.let { parseInstant(it).toEpochMilli() } ?: return stopped
         val serverStart = parseInstant(stopped.startTime).toEpochMilli()
+        val recordedEnd = payload.endTime?.let { serverTime(it, payload.endClock) }
         // Never ask for a time past the server's clock.
-        val end = minOf(payload.endTime ?: serverEnd, serverEnd)
-        val start = minOf(payload.startTime, end - 1000)
+        val end = minOf(recordedEnd ?: serverEnd, serverEnd)
+        val start = minOf(serverTime(payload.startTime, payload.startClock), end - 1000)
         val projectServerId = projectServerId(payload.projectId)
         if (abs(end - serverEnd) < TIME_TOLERANCE_MS && abs(start - serverStart) < TIME_TOLERANCE_MS &&
             projectServerId == stopped.projectId
@@ -289,21 +304,23 @@ class SyncEngine(
     }
 
     private suspend fun createTimer(op: OutboxEntity, payload: TimerPayload) {
-        val end = payload.endTime ?: run {
+        val recordedEnd = payload.endTime ?: run {
             outboxDao.delete(op.seq)
             return
         }
         val projectServerId = projectServerId(payload.projectId)
+        val start = serverTime(payload.startTime, payload.startClock)
+        val end = serverTime(recordedEnd, payload.endClock)
         suspend fun create(start: Long, end: Long) = api.createTimer(TimerCreateBody(projectServerId, isoString(start), isoString(end)))
         val created = try {
-            call { create(payload.startTime, end) }
+            call { create(start, end) }
         } catch (error: ApiException) {
             when {
                 // A retry of a creation whose response was lost overlaps itself.
-                error.code == "timer_overlap" -> findSameEntry(projectServerId, payload.startTime, end) ?: throw error
+                error.code == "timer_overlap" -> findSameEntry(projectServerId, start, end) ?: throw error
                 else -> {
-                    val (start, shiftedEnd) = behindServerClock(error, payload.startTime, end) ?: throw error
-                    call { create(start, shiftedEnd) }
+                    val (movedStart, shiftedEnd) = behindServerClock(error, start, end) ?: throw error
+                    call { create(movedStart, shiftedEnd) }
                 }
             }
         }
@@ -331,12 +348,14 @@ class SyncEngine(
         }
         val projectServerId = projectServerId(payload.projectId)
         suspend fun update(start: Long, end: Long) = api.updateTimer(serverId, timerPatch(projectServerId, start, end))
+        val start = serverTime(payload.startTime, payload.startClock)
+        val serverEnd = serverTime(end, payload.endClock)
         val result = try {
             try {
-                call { update(payload.startTime, end) }
+                call { update(start, serverEnd) }
             } catch (error: ApiException) {
-                val (start, shiftedEnd) = behindServerClock(error, payload.startTime, end) ?: throw error
-                call { update(start, shiftedEnd) }
+                val (movedStart, shiftedEnd) = behindServerClock(error, start, serverEnd) ?: throw error
+                call { update(movedStart, shiftedEnd) }
             }
         } catch (error: ApiException) {
             if (error.status != 404) throw error
@@ -469,6 +488,16 @@ class SyncEngine(
             if (result.items.size < TimeGripApi.MAX_PAGE_SIZE || items.size >= result.total) return items
             page++
         }
+    }
+
+    /**
+     * A time this phone recorded, on the server's clock (see [ServerClock.toServer]).
+     * Before the first answer of this run nothing is known about the server's
+     * clock; a cheap request settles it.
+     */
+    private suspend fun serverTime(wall: Long, stamp: MonoStamp?): Long {
+        if (stamp != null && !serverClock.known) fetchRunning()
+        return serverClock.toServer(wall, stamp)
     }
 
     private suspend fun fetchRunning(): TimerDto? {

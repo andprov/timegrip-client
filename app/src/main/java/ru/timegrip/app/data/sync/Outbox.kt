@@ -2,6 +2,7 @@ package ru.timegrip.app.data.sync
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import ru.timegrip.app.data.local.MonoStamp
 import ru.timegrip.app.data.local.OutboxDao
 import ru.timegrip.app.data.local.OutboxEntity
 import ru.timegrip.app.data.local.OutboxState
@@ -49,9 +50,13 @@ data class TimerPayload(
     val projectId: String,
     val startTime: Long,
     val endTime: Long? = null,
+    /** See [TimerEntity.startClock]; absent in operations queued by older versions. */
+    val startClock: MonoStamp? = null,
+    val endClock: MonoStamp? = null,
 ) {
     companion object {
-        fun of(timer: TimerEntity) = TimerPayload(timer.projectId, timer.startTime, timer.endTime)
+        fun of(timer: TimerEntity) =
+            TimerPayload(timer.projectId, timer.startTime, timer.endTime, timer.startClock, timer.endClock)
     }
 }
 

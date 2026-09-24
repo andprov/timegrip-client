@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.map
 import ru.timegrip.app.data.local.AppDatabase
 import ru.timegrip.app.data.local.TimerEntity
 import ru.timegrip.app.data.local.TimerWithSync
+import ru.timegrip.app.data.remote.DeviceClock
 import ru.timegrip.app.data.sync.OpType
 import ru.timegrip.app.data.sync.Outbox
 import ru.timegrip.app.data.sync.SyncManager
@@ -26,6 +27,7 @@ class TimerRepository(
     private val db: AppDatabase,
     private val outbox: Outbox,
     private val syncManager: SyncManager,
+    private val deviceClock: DeviceClock,
 ) {
     private val timerDao = db.timerDao()
     private val projectDao = db.projectDao()
@@ -49,11 +51,12 @@ class TimerRepository(
                 id = UUID.randomUUID().toString(),
                 serverId = null,
                 projectId = projectId,
-                startTime = System.currentTimeMillis(),
+                startTime = deviceClock.wall(),
                 endTime = null,
                 hourlyRate = project.hourlyRate,
                 roundToHour = project.roundToHour,
                 billableAmount = null,
+                startClock = deviceClock.stamp(),
             )
             timerDao.upsert(timer)
             outbox.timerStarted(timer)
@@ -67,10 +70,16 @@ class TimerRepository(
      */
     suspend fun stop() {
         db.withTransaction {
-            val now = System.currentTimeMillis()
+            val now = deviceClock.wall()
+            val clock = deviceClock.stamp()
             for (running in timerDao.getRunning()) {
                 val end = maxOf(now, running.startTime + 1000)
-                val stopped = running.copy(endTime = end, billableAmount = amountOf(running.copy(endTime = end)))
+                val stopped = running.copy(
+                    endTime = end,
+                    billableAmount = amountOf(running.copy(endTime = end)),
+                    // Nudged past the start (a stop within a second of it): the stamp would not match.
+                    endClock = clock.takeIf { end == now },
+                )
                 timerDao.upsert(stopped)
                 outbox.timerStopped(stopped)
             }
@@ -118,7 +127,13 @@ class TimerRepository(
                 )
             }
             val range = validRange(start, end, excludeId = id)
-            updated = updated.copy(startTime = range.first, endTime = range.second)
+            // A time typed in by the user is meant as it is shown: it loses its place on the monotonic clock.
+            updated = updated.copy(
+                startTime = range.first,
+                endTime = range.second,
+                startClock = existing.startClock.takeIf { range.first == existing.startTime },
+                endClock = existing.endClock.takeIf { range.second == existing.endTime },
+            )
             updated = updated.copy(billableAmount = amountOf(updated))
             timerDao.upsert(updated)
             outbox.timerUpdated(updated)

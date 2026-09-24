@@ -36,7 +36,12 @@ object HttpClientFactory {
         coerceInputValues = true
     }
 
-    fun createApi(sessionStore: SessionStore, settingsStore: SettingsStore, reachability: ServerReachability): TimeGripApi {
+    fun createApi(
+        sessionStore: SessionStore,
+        settingsStore: SettingsStore,
+        reachability: ServerReachability,
+        serverClock: ServerClock,
+    ): TimeGripApi {
         val baseUrlInterceptor = BaseUrlInterceptor(settingsStore)
         val userAgentInterceptor = UserAgentInterceptor()
 
@@ -44,6 +49,7 @@ object HttpClientFactory {
         // into the authenticator below.
         val refreshClient = OkHttpClient.Builder()
             .addInterceptor(reachability.interceptor)
+            .addInterceptor(serverClock.interceptor)
             .addInterceptor(userAgentInterceptor)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
@@ -52,6 +58,7 @@ object HttpClientFactory {
         val client = OkHttpClient.Builder()
             // First, so it sees the final outcome of a call, after token refreshes and retries.
             .addInterceptor(reachability.interceptor)
+            .addInterceptor(serverClock.interceptor)
             .addInterceptor(baseUrlInterceptor)
             .addInterceptor(userAgentInterceptor)
             .addInterceptor(AuthInterceptor(sessionStore))

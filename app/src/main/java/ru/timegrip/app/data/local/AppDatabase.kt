@@ -1,14 +1,19 @@
 package ru.timegrip.app.data.local
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
     entities = [ProjectEntity::class, TimerEntity::class, OutboxEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
+    autoMigrations = [
+        // 2: timers remember their start and stop on the monotonic clock.
+        AutoMigration(from = 1, to = 2),
+    ],
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun projectDao(): ProjectDao

@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
  * network. Every API call reports its outcome through [interceptor]; [probe]
  * asks the server directly when nothing else is talking to it.
  */
-class ServerReachability(private val settingsStore: SettingsStore) {
+class ServerReachability(private val settingsStore: SettingsStore, private val serverClock: ServerClock) {
     private val state = MutableStateFlow<Boolean?>(null)
 
     /** true: the server answered the last request; false: it did not; null: not known yet. */
@@ -65,7 +65,10 @@ class ServerReachability(private val settingsStore: SettingsStore) {
             .build()
         probingState.value = true
         val answered = try {
-            probeClient.newCall(request).execute().use { it.code !in SERVER_DOWN }
+            probeClient.newCall(request).execute().use { response ->
+                serverClock.record(response)
+                response.code !in SERVER_DOWN
+            }
         } catch (_: IOException) {
             false
         } finally {
