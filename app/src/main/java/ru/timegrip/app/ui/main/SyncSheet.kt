@@ -96,21 +96,23 @@ class SyncViewModel(
 }
 
 /**
- * Cloud icon next to the timer controls: rejected changes, offline, uploading,
- * last sync failed, waiting to upload, or all synced. The arrows spin while
- * changes are going out; refreshing data in the background keeps them still.
+ * Cloud icon next to the timer controls. While the app is talking to the server
+ * (a sync, or asking a server that looked down whether it is back) it shows the
+ * circular arrows, spinning; otherwise a still icon: rejected changes, offline,
+ * last sync failed, waiting to upload, or all synced. The badge counts changes
+ * not on the server yet, or the rejected ones, in red, when there are any.
  */
 @Composable
 fun SyncStatusButton() {
     val status by LocalAppContainer.current.syncManager.status.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
 
-    val uploading = status.isSyncing && status.pendingCount > 0
+    val attempting = status.isSyncing || status.isChecking
     val problem = status.problem
     val (icon: ImageVector, badge: Int) = when {
+        attempting -> Icons.Outlined.Sync to (status.failedCount.takeIf { it > 0 } ?: status.pendingCount)
         status.failedCount > 0 -> Icons.Outlined.SyncProblem to status.failedCount
         !status.isOnline -> Icons.Outlined.CloudOff to status.pendingCount
-        uploading -> Icons.Outlined.Sync to 0
         // "All done" only after a sync that actually reached the server.
         problem is SyncProblem.Network -> Icons.Outlined.CloudOff to status.pendingCount
         problem != null -> Icons.Outlined.SyncProblem to status.pendingCount
@@ -118,19 +120,7 @@ fun SyncStatusButton() {
         else -> Icons.Outlined.CloudDone to 0
     }
     val alarming = status.failedCount > 0 || (problem != null && problem !is SyncProblem.Network)
-    // Only the circular arrows spin: a cloud shown while an upload is still going
-    // (offline, rejected changes) stays still.
-    val rotation = if (icon == Icons.Outlined.Sync) {
-        val transition = rememberInfiniteTransition(label = "sync")
-        transition.animateFloat(
-            initialValue = 360f,
-            targetValue = 0f,
-            animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Restart),
-            label = "sync-rotation",
-        ).value
-    } else {
-        0f
-    }
+    val rotation = syncRotation(attempting)
 
     IconButton(onClick = { open = true }) {
         BadgedBox(badge = {
@@ -149,6 +139,19 @@ fun SyncStatusButton() {
         }
     }
     if (open) SyncSheet(onDismiss = { open = false })
+}
+
+/** The angle of the circular sync arrows: turning while [active], at rest otherwise. */
+@Composable
+private fun syncRotation(active: Boolean): Float {
+    if (!active) return 0f
+    val transition = rememberInfiniteTransition(label = "sync")
+    return transition.animateFloat(
+        initialValue = 360f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Restart),
+        label = "sync-rotation",
+    ).value
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -180,6 +183,7 @@ private fun SyncSheet(onDismiss: () -> Unit) {
                         when {
                             status.isSyncing && status.pendingCount > 0 -> stringResource(R.string.sync_uploading)
                             status.isSyncing -> stringResource(R.string.sync_syncing)
+                            status.isChecking -> stringResource(R.string.sync_checking)
                             !status.networkAvailable -> stringResource(R.string.sync_offline)
                             !status.isOnline -> stringResource(R.string.sync_problem_network)
                             problem != null -> problemText(problem)
@@ -187,7 +191,7 @@ private fun SyncSheet(onDismiss: () -> Unit) {
                             else -> stringResource(R.string.sync_online)
                         },
                         style = MaterialTheme.typography.bodyLarge,
-                        color = if (!status.isSyncing && status.networkAvailable && (!status.isOnline || problem != null)) {
+                        color = if (!status.isSyncing && !status.isChecking && status.networkAvailable && (!status.isOnline || problem != null)) {
                             MaterialTheme.colorScheme.error
                         } else {
                             MaterialTheme.colorScheme.onSurface
@@ -201,10 +205,15 @@ private fun SyncSheet(onDismiss: () -> Unit) {
                         )
                     }
                     Text(
-                        if (status.pendingCount > 0) {
-                            pluralStringResource(R.plurals.sync_pending, status.pendingCount, status.pendingCount)
-                        } else {
-                            stringResource(R.string.sync_all_synced)
+                        when {
+                            status.pendingCount > 0 ->
+                                pluralStringResource(R.plurals.sync_pending, status.pendingCount, status.pendingCount)
+                            // Rejected changes are not on the server either; the list below says which.
+                            status.failedCount > 0 ->
+                                pluralStringResource(R.plurals.sync_rejected, status.failedCount, status.failedCount)
+                            // Without the server at hand, "uploaded" would claim more than is known now.
+                            !status.isOnline || problem != null -> stringResource(R.string.sync_nothing_pending)
+                            else -> stringResource(R.string.sync_all_synced)
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -224,7 +233,13 @@ private fun SyncSheet(onDismiss: () -> Unit) {
                     enabled = status.networkAvailable && !status.isSyncing,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Icon(Icons.Outlined.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.Outlined.Sync,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .rotate(syncRotation(status.isSyncing || status.isChecking)),
+                    )
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.sync_now))
                 }

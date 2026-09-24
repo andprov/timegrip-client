@@ -23,6 +23,11 @@ class ServerReachability(private val settingsStore: SettingsStore) {
     /** true: the server answered the last request; false: it did not; null: not known yet. */
     val reachable: StateFlow<Boolean?> = state.asStateFlow()
 
+    private val probingState = MutableStateFlow(false)
+
+    /** A [probe] is waiting for the server's answer. */
+    val probing: StateFlow<Boolean> = probingState.asStateFlow()
+
     /** Forgets the last outcome, e.g. when the phone switches networks. */
     fun reset() {
         state.value = null
@@ -58,10 +63,13 @@ class ServerReachability(private val settingsStore: SettingsStore) {
         val request = Request.Builder()
             .url(HttpClientFactory.resolve(settingsStore.apiBaseUrl.value, "users/me"))
             .build()
+        probingState.value = true
         val answered = try {
             probeClient.newCall(request).execute().use { it.code !in SERVER_DOWN }
         } catch (_: IOException) {
             false
+        } finally {
+            probingState.value = false
         }
         state.value = answered
         answered

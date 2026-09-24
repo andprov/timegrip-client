@@ -46,6 +46,8 @@ data class SyncStatus(
     /** The network is there and our server answers on it. */
     val isOnline: Boolean = false,
     val isSyncing: Boolean = false,
+    /** The server looked down and is being asked whether it is back. */
+    val isChecking: Boolean = false,
     val pendingCount: Int = 0,
     val failedCount: Int = 0,
     /** When the last sync completed successfully. */
@@ -93,15 +95,16 @@ class SyncManager(
 
     val status: StateFlow<SyncStatus> = combine(
         combine(network, isOnline, ::Pair),
-        syncing,
+        combine(syncing, reachability.probing, ::Pair),
         outboxDao.observeCounts(),
         lastSyncAt,
         problem,
-    ) { (hasNetwork, isOnline), isSyncing, counts: OutboxCounts, last, currentProblem ->
+    ) { (hasNetwork, isOnline), (isSyncing, isChecking), counts: OutboxCounts, last, currentProblem ->
         SyncStatus(
             networkAvailable = hasNetwork,
             isOnline = isOnline,
             isSyncing = isSyncing,
+            isChecking = isChecking,
             pendingCount = counts.total - counts.failed,
             failedCount = counts.failed,
             lastSyncAt = last,

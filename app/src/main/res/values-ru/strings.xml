@@ -241,6 +241,7 @@
     <string name="sync_online">В сети</string>
     <string name="sync_offline">Нет сети — изменения сохраняются на устройстве и будут выгружены, когда связь появится</string>
     <string name="sync_syncing">Синхронизация…</string>
+    <string name="sync_checking">Проверка связи с сервером…</string>
     <string name="sync_uploading">Отправка изменений…</string>
     <string name="sync_connected">Связь с сервером есть</string>
     <string name="sync_last_attempt">Последняя попытка: %s</string>
@@ -252,6 +253,13 @@
         <item quantity="many">%d изменений ждут выгрузки</item>
         <item quantity="other">%d изменения ждут выгрузки</item>
     </plurals>
+    <plurals name="sync_rejected">
+        <item quantity="one">%d изменение отклонено сервером</item>
+        <item quantity="few">%d изменения отклонены сервером</item>
+        <item quantity="many">%d изменений отклонено сервером</item>
+        <item quantity="other">%d изменения отклонены сервером</item>
+    </plurals>
+    <string name="sync_nothing_pending">Неотправленных изменений нет</string>
     <string name="sync_all_synced">Все изменения выгружены на сервер</string>
     <string name="sync_now">Синхронизировать</string>
     <string name="sync_failed_title">Отклонено сервером</string>

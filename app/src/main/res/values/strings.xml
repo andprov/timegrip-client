@@ -232,6 +232,7 @@
     <string name="sync_online">Online</string>
     <string name="sync_offline">Offline — changes are saved on this device and uploaded when the connection is back</string>
     <string name="sync_syncing">Syncing…</string>
+    <string name="sync_checking">Checking the connection to the server…</string>
     <string name="sync_uploading">Uploading changes…</string>
     <string name="sync_connected">Connected to the server</string>
     <string name="sync_last_attempt">Last attempt: %s</string>
@@ -241,6 +242,11 @@
         <item quantity="one">%d change waiting to upload</item>
         <item quantity="other">%d changes waiting to upload</item>
     </plurals>
+    <plurals name="sync_rejected">
+        <item quantity="one">%d change was rejected by the server</item>
+        <item quantity="other">%d changes were rejected by the server</item>
+    </plurals>
+    <string name="sync_nothing_pending">No unsent changes</string>
     <string name="sync_all_synced">All changes are uploaded to the server</string>
     <string name="sync_now">Sync now</string>
     <string name="sync_failed_title">Rejected by the server</string>
