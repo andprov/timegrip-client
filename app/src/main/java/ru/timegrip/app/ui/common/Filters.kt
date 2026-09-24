@@ -193,17 +193,19 @@ fun OptionsWindow(
         onAction = onAction,
         actionEnabled = actionEnabled,
     ) { padding ->
-        Column(Modifier.padding(padding)) {
+        // With a confirm button the list gives it room at the bottom; without one
+        // the list is the whole window and a choice closes it right away.
+        val button: (@Composable () -> Unit)? = if (confirmLabel != null && onConfirm != null) {
+            { ConfirmButton(confirmLabel, onClick = onConfirm) }
+        } else {
+            null
+        }
+        ConfirmButtonLayout(padding, button) {
             header?.invoke()
-            // With a confirm button the list gives it room at the bottom; without one
-            // the list is the whole window and a choice closes it right away.
             LazyColumn(
-                modifier = if (onConfirm == null) Modifier else Modifier.weight(1f),
+                modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(bottom = 16.dp),
             ) { content(onDismiss) }
-            if (confirmLabel != null && onConfirm != null) {
-                ConfirmButton(confirmLabel, onClick = onConfirm)
-            }
         }
     }
 }
@@ -652,7 +654,19 @@ private fun DateRangeDialog(range: DateRange, onDismiss: () -> Unit, onConfirm: 
         onDismiss = onDismiss,
         onAction = null,
     ) { padding ->
-        Column(Modifier.padding(padding)) {
+        ConfirmButtonLayout(
+            padding,
+            button = {
+                ConfirmButton(
+                    stringResource(R.string.apply),
+                    enabled = state.selectedStartDateMillis != null,
+                ) {
+                    val start = state.selectedStartDateMillis?.toLocalDate()
+                    val end = state.selectedEndDateMillis?.toLocalDate() ?: start
+                    if (start != null) onConfirm(DateRange(start, end))
+                }
+            },
+        ) {
             DateRangePicker(
                 state = state,
                 modifier = Modifier
@@ -662,14 +676,6 @@ private fun DateRangeDialog(range: DateRange, onDismiss: () -> Unit, onConfirm: 
                 colors = DatePickerDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
                 showModeToggle = true,
             )
-            ConfirmButton(
-                stringResource(R.string.apply),
-                enabled = state.selectedStartDateMillis != null,
-            ) {
-                val start = state.selectedStartDateMillis?.toLocalDate()
-                val end = state.selectedEndDateMillis?.toLocalDate() ?: start
-                if (start != null) onConfirm(DateRange(start, end))
-            }
         }
     }
 }

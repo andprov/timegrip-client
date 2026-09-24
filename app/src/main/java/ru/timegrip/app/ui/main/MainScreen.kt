@@ -1,6 +1,9 @@
 package ru.timegrip.app.ui.main
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
@@ -8,6 +11,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
@@ -31,8 +35,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import ru.timegrip.app.R
 import ru.timegrip.app.ui.account.AccountScreen
 import ru.timegrip.app.ui.dashboard.DashboardScreen
@@ -65,6 +73,17 @@ private val tabs = listOf(
 /** Icon, indicator and label with a few dp to spare above and below. */
 private val NAV_BAR_HEIGHT = 60.dp
 
+/**
+ * Turning to a page from the bar or with Back: one even glide, however far the page is.
+ * animateScrollToPage jumps most of the way to a page more than three away first.
+ */
+private suspend fun PagerState.glideToPage(page: Int) {
+    val distance = page - currentPage - currentPageOffsetFraction
+    val pageSize = layoutInfo.pageSize + layoutInfo.pageSpacing
+    val duration = (300 + 50 * abs(distance)).toInt().coerceAtMost(500)
+    animateScrollBy(distance * pageSize, tween(duration, easing = FastOutSlowInEasing))
+}
+
 /** Messages any screen can show above the bottom bar. */
 val LocalSnackbarHostState = staticCompositionLocalOf { SnackbarHostState() }
 
@@ -78,11 +97,27 @@ fun MainScreen() {
     val snackbarHostState = remember { SnackbarHostState() }
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
+    // The page the bar is turning to: its item lights up at once instead of the
+    // highlight running through every tab the pages pass on the way.
+    var turningTo by remember { mutableStateOf<Int?>(null) }
+    val selectedPage = turningTo ?: pagerState.currentPage
+
+    fun turnTo(page: Int) {
+        scope.launch {
+            turningTo = page
+            try {
+                pagerState.glideToPage(page)
+            } finally {
+                // A newer tap has already put its own page here.
+                if (turningTo == page) turningTo = null
+            }
+        }
+    }
 
     // Back from any other tab returns to the first one, as it did when the tabs were a back
     // stack; on the first tab the system handles it and the app goes to the background.
     BackHandler(enabled = pagerState.currentPage != 0) {
-        scope.launch { pagerState.animateScrollToPage(0) }
+        turnTo(0)
     }
 
     CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
@@ -107,10 +142,10 @@ fun MainScreen() {
                             windowInsets = WindowInsets(0),
                         ) {
                             tabs.forEachIndexed { index, tab ->
-                                val selected = pagerState.currentPage == index
+                                val selected = selectedPage == index
                                 NavigationBarItem(
                                     selected = selected,
-                                    onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                                    onClick = { turnTo(index) },
                                     icon = { Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = null) },
                                     label = { Text(stringResource(tab.label), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                 )

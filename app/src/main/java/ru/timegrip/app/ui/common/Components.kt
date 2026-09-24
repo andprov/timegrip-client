@@ -58,6 +58,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -263,24 +272,54 @@ fun FullScreenDialog(
         actionEnabled = deleteEnabled,
         actionDestructive = true,
     ) { padding ->
-        // `padding` already reserves space for the keyboard (contentWindowInsets = safeDrawing
-        // includes ime), so an extra .imePadding() here would double it. The form scrolls, the
-        // button below it does not: it stays in reach, above the keyboard while it is open.
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding),
+        ConfirmButtonLayout(
+            padding,
+            button = { ConfirmButton(actionLabel, enabled = actionEnabled, onClick = onAction) },
         ) {
             Column(
                 Modifier
-                    .weight(1f)
+                    .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 content()
             }
-            ConfirmButton(actionLabel, enabled = actionEnabled, onClick = onAction)
+        }
+    }
+}
+
+/**
+ * The body of a [FullScreenDialogFrame] above its confirm [button]. The keyboard
+ * covers the button rather than pushing it up: the button keeps its place at the
+ * bottom and only the body shrinks, down to the keyboard's top edge, so the
+ * field being typed in can still be scrolled into view.
+ */
+@Composable
+fun ConfirmButtonLayout(
+    padding: PaddingValues,
+    button: (@Composable () -> Unit)?,
+    body: @Composable ColumnScope.() -> Unit,
+) {
+    var buttonHeight by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    // What already lies between the body and the bottom edge: the system bar and the button.
+    // The keyboard rises from that edge, so the body gives way only to the part above them.
+    val below = PaddingValues(bottom = padding.calculateBottomPadding() + with(density) { buttonHeight.toDp() })
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(padding),
+    ) {
+        Column(
+            Modifier
+                .weight(1f)
+                .consumeWindowInsets(below)
+                .imePadding(),
+            content = body,
+        )
+        if (button != null) {
+            Box(Modifier.onSizeChanged { buttonHeight = it.height }) { button() }
         }
     }
 }
@@ -306,8 +345,7 @@ fun FullScreenDialogFrame(
     ) {
         // The dialog has its own window: match its status bar icons to the theme, and make it
         // resize for the keyboard itself (it doesn't inherit the host activity's soft input
-        // mode), otherwise the OS pans the whole window while Compose also reserves ime space,
-        // and the two shifts stack into a block that overlaps the fields above it.
+        // mode), otherwise the OS pans the whole window, confirm button and all.
         val view = LocalView.current
         val lightBars = MaterialTheme.colorScheme.background.luminance() > 0.5f
         SideEffect {
@@ -341,7 +379,8 @@ fun FullScreenDialogFrame(
                     },
                 )
             },
-            contentWindowInsets = WindowInsets.safeDrawing,
+            // Without the keyboard: the content makes room for it itself, see ConfirmButtonLayout.
+            contentWindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout),
             content = content,
         )
     }

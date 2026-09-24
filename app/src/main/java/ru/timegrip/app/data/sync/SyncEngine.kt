@@ -294,13 +294,18 @@ class SyncEngine(
             return
         }
         val projectServerId = projectServerId(payload.projectId)
-        val body = TimerCreateBody(projectServerId, isoString(payload.startTime), isoString(end))
+        suspend fun create(start: Long, end: Long) = api.createTimer(TimerCreateBody(projectServerId, isoString(start), isoString(end)))
         val created = try {
-            call { api.createTimer(body) }
+            call { create(payload.startTime, end) }
         } catch (error: ApiException) {
-            if (error.code != "timer_overlap") throw error
-            // A retry of a creation whose response was lost overlaps itself.
-            findSameEntry(projectServerId, payload.startTime, end) ?: throw error
+            when {
+                // A retry of a creation whose response was lost overlaps itself.
+                error.code == "timer_overlap" -> findSameEntry(projectServerId, payload.startTime, end) ?: throw error
+                else -> {
+                    val (start, shiftedEnd) = behindServerClock(error, payload.startTime, end) ?: throw error
+                    call { create(start, shiftedEnd) }
+                }
+            }
         }
         db.withTransaction {
             // The row is only gone if its project was deleted meanwhile; the
@@ -324,8 +329,15 @@ class SyncEngine(
             outboxDao.delete(op.seq)
             return
         }
+        val projectServerId = projectServerId(payload.projectId)
+        suspend fun update(start: Long, end: Long) = api.updateTimer(serverId, timerPatch(projectServerId, start, end))
         val result = try {
-            call { api.updateTimer(serverId, timerPatch(projectServerId(payload.projectId), payload.startTime, end)) }
+            try {
+                call { update(payload.startTime, end) }
+            } catch (error: ApiException) {
+                val (start, shiftedEnd) = behindServerClock(error, payload.startTime, end) ?: throw error
+                call { update(start, shiftedEnd) }
+            }
         } catch (error: ApiException) {
             if (error.status != 404) throw error
             db.withTransaction { removeTimerLocally(op.entityId) }
@@ -634,6 +646,22 @@ class SyncEngine(
 
         /** Server times closer than this to the recorded ones are left as they are. */
         const val TIME_TOLERANCE_MS = 2_000L
+
+        /**
+         * The times of an entry the server refused as lying in the future, moved back
+         * onto the server's clock; null for any other refusal. Recorded times come
+         * from this device's clock, and one running ahead of the server's puts the
+         * end of a timer just stopped "in the future". The whole entry moves by the
+         * difference, so it keeps its length. The server's clock is known to the
+         * second and rounded down, so the new end is never ahead of it.
+         */
+        internal fun behindServerClock(error: ApiException, start: Long, end: Long): Pair<Long, Long>? {
+            if (error.code != "end_time_in_future" && error.code != "start_time_in_future") return null
+            val serverNow = error.serverTime?.toEpochMilli() ?: return null
+            val ahead = end - serverNow
+            if (ahead <= 0) return null
+            return start - ahead to end - ahead
+        }
 
         fun isoString(epochMillis: Long): String = Instant.ofEpochMilli(epochMillis).toString()
 

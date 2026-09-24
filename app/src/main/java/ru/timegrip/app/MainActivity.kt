@@ -15,7 +15,11 @@ import ru.timegrip.app.ui.common.LocalAppContainer
 import ru.timegrip.app.ui.theme.TimeGripTheme
 import ru.timegrip.app.ui.theme.isDarkTheme
 
-/** AppCompat host: it provides the per-app language switch (AppCompatDelegate). */
+/**
+ * AppCompat host: it provides the per-app language switch (AppCompatDelegate).
+ * The manifest handles locale changes itself, so a language switch recomposes
+ * the UI instead of recreating the activity (which made the screen blink).
+ */
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

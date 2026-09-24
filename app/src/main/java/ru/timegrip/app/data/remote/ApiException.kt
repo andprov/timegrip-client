@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import retrofit2.HttpException
 import java.io.IOException
+import java.time.Instant
 
 /**
  * A non-2xx answer from the API. [code] is the backend's machine-readable
@@ -22,12 +23,18 @@ class ApiException(
     val isTransient: Boolean
         get() = status == 408 || status == 429 || status >= 500
 
+    /** The server's clock when it answered (the `Date` header, to the second), if it sent one. */
+    var serverTime: Instant? = null
+        private set
+
     companion object {
         private val LOCATION_PARTS = setOf("body", "query", "path", "header", "cookie")
 
         fun from(error: HttpException, json: Json): ApiException {
             val body = runCatching { error.response()?.errorBody()?.string() }.getOrNull()
-            return fromBody(error.code(), body, json)
+            return fromBody(error.code(), body, json).apply {
+                serverTime = error.response()?.headers()?.getDate("Date")?.toInstant()
+            }
         }
 
         internal fun fromBody(status: Int, body: String?, json: Json): ApiException {

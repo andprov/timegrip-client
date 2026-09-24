@@ -97,8 +97,8 @@ class SyncViewModel(
 
 /**
  * Cloud icon next to the timer controls: rejected changes, offline, uploading,
- * last sync failed, waiting to upload, or all synced. It spins only while
- * changes are going out; refreshing data in the background keeps it still.
+ * last sync failed, waiting to upload, or all synced. The arrows spin while
+ * changes are going out; refreshing data in the background keeps them still.
  */
 @Composable
 fun SyncStatusButton() {
@@ -118,7 +118,9 @@ fun SyncStatusButton() {
         else -> Icons.Outlined.CloudDone to 0
     }
     val alarming = status.failedCount > 0 || (problem != null && problem !is SyncProblem.Network)
-    val rotation = if (uploading) {
+    // Only the circular arrows spin: a cloud shown while an upload is still going
+    // (offline, rejected changes) stays still.
+    val rotation = if (icon == Icons.Outlined.Sync) {
         val transition = rememberInfiniteTransition(label = "sync")
         transition.animateFloat(
             initialValue = 360f,
