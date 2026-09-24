@@ -337,6 +337,8 @@
     <string name="update_available_title">TimeGrip %1$s is available</string>
     <string name="update_available_message">You have version %1$s. Download and install the update?</string>
     <string name="update_download">Update</string>
+    <string name="update_whats_new">What’s new</string>
+    <string name="update_notes_title">What’s new in TimeGrip %1$s</string>
     <string name="update_later">Later</string>
     <string name="update_downloading">Downloading TimeGrip %1$s</string>
     <string name="update_in_background">Hide</string>

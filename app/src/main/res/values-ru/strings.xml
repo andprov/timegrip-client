@@ -348,6 +348,8 @@
     <string name="update_available_title">Доступна версия TimeGrip %1$s</string>
     <string name="update_available_message">У вас установлена версия %1$s. Скачать и установить обновление?</string>
     <string name="update_download">Обновить</string>
+    <string name="update_whats_new">Что нового</string>
+    <string name="update_notes_title">Что нового в TimeGrip %1$s</string>
     <string name="update_later">Позже</string>
     <string name="update_downloading">Загрузка TimeGrip %1$s</string>
     <string name="update_in_background">Скрыть</string>
