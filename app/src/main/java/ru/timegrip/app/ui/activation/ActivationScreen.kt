@@ -53,6 +53,7 @@ import ru.timegrip.app.ui.common.BannerKind
 import ru.timegrip.app.ui.common.ErrorBanner
 import ru.timegrip.app.ui.common.UiMessage
 import ru.timegrip.app.ui.common.appViewModel
+import ru.timegrip.app.ui.common.requiredError
 
 class ActivationViewModel(
     private val account: AccountRepository,
@@ -60,6 +61,10 @@ class ActivationViewModel(
     val sessionStore: SessionStore,
 ) : ViewModel() {
     var code by mutableStateOf("")
+
+    /** Activate was tapped; an empty code field now shows as an error. */
+    var submitted by mutableStateOf(false)
+        private set
     var activating by mutableStateOf(false)
         private set
     var activateError by mutableStateOf<UiMessage?>(null)
@@ -94,8 +99,9 @@ class ActivationViewModel(
     }
 
     fun activate() {
+        submitted = true
         if (code.isBlank()) {
-            activateError = UiMessage.Res(R.string.error_required)
+            activateError = null
             return
         }
         viewModelScope.launch {
@@ -188,6 +194,8 @@ fun ActivationScreen() {
                     label = { Text(stringResource(R.string.activation_code_label)) },
                     placeholder = { Text("123456") },
                     singleLine = true,
+                    isError = requiredError(vm.submitted, vm.code) != null,
+                    supportingText = requiredError(vm.submitted, vm.code)?.let { { Text(it) } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                     modifier = Modifier.fillMaxWidth(),
                 )

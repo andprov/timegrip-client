@@ -36,19 +36,22 @@ object HttpClientFactory {
         coerceInputValues = true
     }
 
-    fun createApi(sessionStore: SessionStore, settingsStore: SettingsStore): TimeGripApi {
+    fun createApi(sessionStore: SessionStore, settingsStore: SettingsStore, reachability: ServerReachability): TimeGripApi {
         val baseUrlInterceptor = BaseUrlInterceptor(settingsStore)
         val userAgentInterceptor = UserAgentInterceptor()
 
         // A bare client for the token refresh itself, so it can never recurse
         // into the authenticator below.
         val refreshClient = OkHttpClient.Builder()
+            .addInterceptor(reachability.interceptor)
             .addInterceptor(userAgentInterceptor)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
 
         val client = OkHttpClient.Builder()
+            // First, so it sees the final outcome of a call, after token refreshes and retries.
+            .addInterceptor(reachability.interceptor)
             .addInterceptor(baseUrlInterceptor)
             .addInterceptor(userAgentInterceptor)
             .addInterceptor(AuthInterceptor(sessionStore))

@@ -100,6 +100,8 @@ sealed interface UiMessage {
                 ?: when {
                     error.status == 429 -> Res(R.string.error_too_many_requests)
                     error.status in listOf(502, 503, 504) -> Res(R.string.error_server_unavailable)
+                    // The server's own wording is English; a vague local text beats it.
+                    error.code?.startsWith("validation") == true -> Res(R.string.error_validation_value_error)
                     !error.detail.isNullOrBlank() -> Text(error.detail)
                     else -> Res(R.string.something_went_wrong)
                 }

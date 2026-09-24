@@ -55,6 +55,8 @@ import ru.timegrip.app.ui.common.Banner
 import ru.timegrip.app.ui.common.BannerKind
 import ru.timegrip.app.ui.common.ErrorBanner
 import ru.timegrip.app.ui.common.PasswordField
+import ru.timegrip.app.ui.common.emailError
+import ru.timegrip.app.ui.common.requiredError
 import ru.timegrip.app.ui.common.appViewModel
 
 @Serializable
@@ -161,16 +163,29 @@ private fun SubmitButton(text: String, loading: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun EmailField(value: String, onValueChange: (String) -> Unit, label: String = stringResource(R.string.email)) {
+private fun EmailField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    errorText: String?,
+    label: String = stringResource(R.string.email),
+) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
         singleLine = true,
+        isError = errorText != null,
+        supportingText = errorText?.let { { Text(it) } },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth(),
     )
 }
+
+/** Empty after a submit, or not matching the password as soon as something is typed. */
+@Composable
+private fun confirmError(submitted: Boolean, password: String, confirm: String): String? =
+    requiredError(submitted, confirm)
+        ?: if (confirm.isNotEmpty() && confirm != password) stringResource(R.string.passwords_do_not_match) else null
 
 @Composable
 private fun SignInScreen(
@@ -196,12 +211,13 @@ private fun SignInScreen(
             Banner(text, kind = BannerKind.INFO)
         }
         if (passwordReset) Banner(stringResource(R.string.password_reset_done), kind = BannerKind.SUCCESS)
-        EmailField(vm.email, { vm.email = it })
+        EmailField(vm.email, { vm.email = it }, emailError(vm.submitted, vm.email))
         PasswordField(
             vm.password,
             { vm.password = it },
             stringResource(R.string.password),
             imeAction = ImeAction.Done,
+            errorText = requiredError(vm.submitted, vm.password),
         )
         ErrorBanner(vm.error)
         SubmitButton(stringResource(R.string.sign_in), vm.loading) {
@@ -280,19 +296,20 @@ private fun SignUpScreen(onSignIn: () -> Unit) {
     val vm = appViewModel { SignUpViewModel(it.authRepository) }
     val focus = LocalFocusManager.current
     AuthLayout(stringResource(R.string.create_account)) {
-        EmailField(vm.email, { vm.email = it })
+        EmailField(vm.email, { vm.email = it }, emailError(vm.submitted, vm.email))
         PasswordField(
             vm.password,
             { vm.password = it },
             stringResource(R.string.password),
             supportingText = stringResource(R.string.password_hint),
+            errorText = requiredError(vm.submitted, vm.password),
         )
         PasswordField(
             vm.confirmPassword,
             { vm.confirmPassword = it },
             stringResource(R.string.confirm_password),
             imeAction = ImeAction.Done,
-            isError = vm.confirmPassword.isNotEmpty() && vm.confirmPassword != vm.password,
+            errorText = confirmError(vm.submitted, vm.password, vm.confirmPassword),
         )
         ErrorBanner(vm.error)
         SubmitButton(stringResource(R.string.sign_up), vm.loading) {
@@ -309,7 +326,7 @@ private fun SignUpScreen(onSignIn: () -> Unit) {
 private fun ForgotPasswordScreen(onBack: () -> Unit, onCodeSent: (String) -> Unit, onHaveCode: (String) -> Unit) {
     val vm = appViewModel { ForgotPasswordViewModel(it.authRepository) }
     AuthLayout(stringResource(R.string.forgot_password_title)) {
-        EmailField(vm.email, { vm.email = it })
+        EmailField(vm.email, { vm.email = it }, emailError(vm.submitted, vm.email))
         ErrorBanner(vm.error)
         SubmitButton(stringResource(R.string.send_reset_code), vm.loading) { vm.send(onCodeSent) }
         TextButton(onClick = { onHaveCode(vm.email.trim()) }, modifier = Modifier.fillMaxWidth()) {
@@ -326,12 +343,14 @@ private fun ResetPasswordScreen(email: String, codeSent: Boolean, onBack: () -> 
     val vm = appViewModel { ResetPasswordViewModel(it.authRepository, email) }
     AuthLayout(stringResource(R.string.reset_password)) {
         if (codeSent) Banner(stringResource(R.string.reset_code_sent_message, email), kind = BannerKind.INFO)
-        EmailField(vm.email, { vm.email = it })
+        EmailField(vm.email, { vm.email = it }, emailError(vm.submitted, vm.email))
         OutlinedTextField(
             value = vm.code,
             onValueChange = { vm.code = it },
             label = { Text(stringResource(R.string.reset_code)) },
             singleLine = true,
+            isError = requiredError(vm.submitted, vm.code) != null,
+            supportingText = requiredError(vm.submitted, vm.code)?.let { { Text(it) } },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth(),
         )
@@ -340,13 +359,14 @@ private fun ResetPasswordScreen(email: String, codeSent: Boolean, onBack: () -> 
             { vm.password = it },
             stringResource(R.string.new_password),
             supportingText = stringResource(R.string.password_hint),
+            errorText = requiredError(vm.submitted, vm.password),
         )
         PasswordField(
             vm.confirmPassword,
             { vm.confirmPassword = it },
             stringResource(R.string.confirm_password),
             imeAction = ImeAction.Done,
-            isError = vm.confirmPassword.isNotEmpty() && vm.confirmPassword != vm.password,
+            errorText = confirmError(vm.submitted, vm.password, vm.confirmPassword),
         )
         ErrorBanner(vm.error)
         SubmitButton(stringResource(R.string.reset_password), vm.loading) { vm.reset(onDone) }

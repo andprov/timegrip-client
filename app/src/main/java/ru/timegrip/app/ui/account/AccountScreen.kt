@@ -14,11 +14,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Devices
-import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -50,10 +50,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -82,6 +84,9 @@ import ru.timegrip.app.ui.common.PanelCard
 import ru.timegrip.app.ui.common.PasswordField
 import ru.timegrip.app.ui.common.UiMessage
 import ru.timegrip.app.ui.common.appViewModel
+import ru.timegrip.app.ui.common.emailError
+import ru.timegrip.app.ui.common.isValidEmail
+import ru.timegrip.app.ui.common.requiredError
 import ru.timegrip.app.ui.common.text
 
 class AccountViewModel(
@@ -246,11 +251,7 @@ fun AccountScreen() {
             item {
                 PanelCard(contentPadding = PaddingValues(vertical = 4.dp)) {
                     Column {
-                        SettingRow(
-                            icon = Icons.Outlined.AccountCircle,
-                            title = stringResource(R.string.signed_in_as),
-                            value = user.email,
-                        )
+                        ProfileHeader(user.email)
                         SettingRow(
                             icon = Icons.Outlined.Email,
                             title = stringResource(R.string.change_email),
@@ -293,15 +294,11 @@ fun AccountScreen() {
                                 sessions != null -> pluralStringResource(R.plurals.sessions_count, sessions.size, sessions.size)
                                 else -> stringResource(R.string.active_sessions_desc)
                             },
-                            trailing = if (sessions.isNullOrEmpty()) {
-                                null
-                            } else {
-                                {
-                                    Icon(
-                                        if (sessionsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                                        contentDescription = null,
-                                    )
-                                }
+                            trailing = {
+                                Icon(
+                                    if (sessionsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                                    contentDescription = null,
+                                )
                             },
                             enabled = !sessions.isNullOrEmpty(),
                         ) { sessionsExpanded = !sessionsExpanded }
@@ -325,7 +322,6 @@ fun AccountScreen() {
             item {
                 PanelCard(contentPadding = PaddingValues(vertical = 4.dp)) {
                     Column {
-                        SettingRow(Icons.Outlined.Dns, stringResource(R.string.server_row), apiUrl)
                         SettingRow(
                             icon = Icons.Outlined.SystemUpdate,
                             title = stringResource(R.string.check_for_updates),
@@ -366,7 +362,8 @@ fun AccountScreen() {
             }
             item {
                 Text(
-                    stringResource(R.string.app_version, BuildConfig.VERSION_NAME),
+                    stringResource(R.string.version_row) + ": " + BuildConfig.VERSION_NAME + "\n" +
+                        stringResource(R.string.server_row) + ": " + apiUrl.substringAfter("://").trimEnd('/'),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -431,6 +428,22 @@ fun AccountScreen() {
     }
 }
 
+/** The signed-in email: a row like the settings below, but with no chevron and no tap. */
+@Composable
+private fun ProfileHeader(email: String) {
+    // Laid out like the settings rows below, minus the chevron and the tap.
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.signed_in_as)) },
+        supportingContent = { Text(email, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        leadingContent = { Icon(Icons.Outlined.AccountCircle, contentDescription = null) },
+        colors = ListItemDefaults.colors(
+            containerColor = Color.Transparent,
+            leadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+    )
+}
+
+/** Tappable settings row; shows a chevron unless [trailing] overrides it. */
 @Composable
 private fun SettingRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector?,
@@ -438,20 +451,25 @@ private fun SettingRow(
     value: String? = null,
     enabled: Boolean = true,
     trailing: (@Composable () -> Unit)? = null,
-    onClick: (() -> Unit)? = null,
+    onClick: () -> Unit,
 ) {
+    val colors = MaterialTheme.colorScheme
     ListItem(
         headlineContent = { Text(title) },
         supportingContent = value?.let { { Text(it) } },
         leadingContent = {
             if (icon != null) Icon(icon, contentDescription = null) else Spacer(Modifier.width(24.dp))
         },
-        trailingContent = trailing,
+        trailingContent = trailing ?: { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
         colors = ListItemDefaults.colors(
             containerColor = Color.Transparent,
-            headlineColor = if (enabled || onClick == null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            headlineColor = colors.onSurface,
+            leadingIconColor = colors.onSurfaceVariant,
+            supportingColor = colors.onSurfaceVariant,
         ),
-        modifier = if (onClick != null) Modifier.clickable(enabled = enabled, onClick = onClick) else Modifier,
+        modifier = Modifier
+            .clickable(enabled = enabled, onClick = onClick)
+            .alpha(if (enabled) 1f else 0.38f),
     )
 }
 
@@ -536,6 +554,7 @@ private fun ConfirmActionDialog(
 private fun ChangeEmailDialog(vm: AccountViewModel, onDismiss: () -> Unit) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    var submitted by rememberSaveable { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.change_email)) },
@@ -546,17 +565,28 @@ private fun ChangeEmailDialog(vm: AccountViewModel, onDismiss: () -> Unit) {
                     onValueChange = { email = it },
                     label = { Text(stringResource(R.string.new_email)) },
                     singleLine = true,
+                    isError = emailError(submitted, email) != null,
+                    supportingText = emailError(submitted, email)?.let { { Text(it) } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                PasswordField(password, { password = it }, stringResource(R.string.current_password), imeAction = ImeAction.Done)
+                PasswordField(
+                    password,
+                    { password = it },
+                    stringResource(R.string.current_password),
+                    imeAction = ImeAction.Done,
+                    errorText = requiredError(submitted, password),
+                )
                 ErrorBanner(vm.dialogError)
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { vm.changeEmail(password, email, onDismiss) },
-                enabled = !vm.busy && email.isNotBlank() && password.isNotEmpty(),
+                onClick = {
+                    submitted = true
+                    if (isValidEmail(email) && password.isNotBlank()) vm.changeEmail(password, email, onDismiss)
+                },
+                enabled = !vm.busy,
             ) { Text(stringResource(R.string.update_email)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
@@ -568,26 +598,36 @@ private fun ChangeEmailDialog(vm: AccountViewModel, onDismiss: () -> Unit) {
 private fun ChangePasswordDialog(vm: AccountViewModel, onDismiss: () -> Unit) {
     var current by rememberSaveable { mutableStateOf("") }
     var new by rememberSaveable { mutableStateOf("") }
+    var submitted by rememberSaveable { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.change_password)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                PasswordField(current, { current = it }, stringResource(R.string.current_password))
+                PasswordField(
+                    current,
+                    { current = it },
+                    stringResource(R.string.current_password),
+                    errorText = requiredError(submitted, current),
+                )
                 PasswordField(
                     new,
                     { new = it },
                     stringResource(R.string.new_password),
                     imeAction = ImeAction.Done,
                     supportingText = stringResource(R.string.password_hint),
+                    errorText = requiredError(submitted, new),
                 )
                 ErrorBanner(vm.dialogError)
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { vm.changePassword(current, new, onDismiss) },
-                enabled = !vm.busy && current.isNotEmpty() && new.isNotEmpty(),
+                onClick = {
+                    submitted = true
+                    if (current.isNotBlank() && new.isNotBlank()) vm.changePassword(current, new, onDismiss)
+                },
+                enabled = !vm.busy,
             ) { Text(stringResource(R.string.update_password)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },

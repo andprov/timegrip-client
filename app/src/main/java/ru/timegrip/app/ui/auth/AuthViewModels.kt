@@ -8,13 +8,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import ru.timegrip.app.R
 import ru.timegrip.app.data.prefs.SettingsStore
 import ru.timegrip.app.data.repository.AuthRepository
 import ru.timegrip.app.data.repository.Locales
 import ru.timegrip.app.ui.common.UiMessage
+import ru.timegrip.app.ui.common.isValidEmail
 
-/** Shared shape of the auth forms: one request at a time, one error line. */
+/**
+ * Shared shape of the auth forms: one request at a time, one error line for
+ * what the server says. Empty fields are not an error line: each one shows
+ * its own error under it (see [requiredError]).
+ */
 abstract class FormViewModel : ViewModel() {
     var loading by mutableStateOf(false)
         private set
@@ -38,9 +42,14 @@ abstract class FormViewModel : ViewModel() {
         }
     }
 
+    /** A submit was tried; from now on empty required fields show as errors. */
+    var submitted by mutableStateOf(false)
+        private set
+
     protected fun requireFilled(vararg values: String): Boolean {
+        submitted = true
         if (values.any { it.isBlank() }) {
-            error = UiMessage.Res(R.string.error_required)
+            error = null
             return false
         }
         return true
@@ -58,7 +67,7 @@ class SignInViewModel(private val auth: AuthRepository, val settings: SettingsSt
     }
 
     fun signIn() {
-        if (!requireFilled(email, password)) return
+        if (!requireFilled(email, password) || !isValidEmail(email)) return
         submit { auth.signIn(email, password) }
     }
 }
@@ -69,11 +78,9 @@ class SignUpViewModel(private val auth: AuthRepository) : FormViewModel() {
     var confirmPassword by mutableStateOf("")
 
     fun signUp() {
-        if (!requireFilled(email, password, confirmPassword)) return
-        if (password != confirmPassword) {
-            error = UiMessage.Res(R.string.passwords_do_not_match)
-            return
-        }
+        if (!requireFilled(email, password, confirmPassword) || !isValidEmail(email)) return
+        // The confirmation field already says so under itself.
+        if (password != confirmPassword) return
         // The account starts in the language the app is shown in (web: SignUpPage).
         submit { auth.signUp(email, password, Locales.current()) }
     }
@@ -83,7 +90,7 @@ class ForgotPasswordViewModel(private val auth: AuthRepository) : FormViewModel(
     var email by mutableStateOf("")
 
     fun send(onSent: (String) -> Unit) {
-        if (!requireFilled(email)) return
+        if (!requireFilled(email) || !isValidEmail(email)) return
         submit {
             auth.forgotPassword(email)
             onSent(email.trim())
@@ -98,11 +105,9 @@ class ResetPasswordViewModel(private val auth: AuthRepository, initialEmail: Str
     var confirmPassword by mutableStateOf("")
 
     fun reset(onDone: () -> Unit) {
-        if (!requireFilled(email, code, password, confirmPassword)) return
-        if (password != confirmPassword) {
-            error = UiMessage.Res(R.string.passwords_do_not_match)
-            return
-        }
+        if (!requireFilled(email, code, password, confirmPassword) || !isValidEmail(email)) return
+        // The confirmation field already says so under itself.
+        if (password != confirmPassword) return
         submit {
             auth.resetPassword(email, code, password)
             onDone()

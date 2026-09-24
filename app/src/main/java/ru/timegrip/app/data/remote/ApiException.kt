@@ -30,11 +30,29 @@ class ApiException(
             val parsed = body?.let { runCatching { json.decodeFromString(ErrorDto.serializer(), it) }.getOrNull() }
             val detail = parsed?.detail
             return when {
+                detail is JsonPrimitive && parsed.code == VALIDATION_ERROR ->
+                    fromValidationText(error.code(), detail.contentOrNull)
                 detail is JsonPrimitive -> ApiException(error.code(), parsed.code, detail.contentOrNull)
                 detail is JsonArray && detail.isNotEmpty() -> fromValidation(error.code(), detail.first())
                 else -> ApiException(error.code(), parsed?.code, null)
             }
         }
+
+        /**
+         * The backend's own validation answer: `code: validation_error` and a
+         * `field: message` line, e.g. `email: value is not a valid email address: ...`.
+         * Mapped onto the same `validation.<field>.<type>` codes as Pydantic's list.
+         */
+        private fun fromValidationText(status: Int, text: String?): ApiException {
+            val field = text?.substringBefore(": ", "")?.takeIf { it.matches(FIELD_NAME) }
+            val message = if (field != null) text.substringAfter(": ") else text
+            val type = if (message?.startsWith("Field required") == true) "missing" else "value_error"
+            val code = if (field != null) "validation.$field.$type" else "validation.$type"
+            return ApiException(status, code, text)
+        }
+
+        private const val VALIDATION_ERROR = "validation_error"
+        private val FIELD_NAME = Regex("[a-z_][a-z0-9_]*")
 
         // Pydantic reports a `type` per failed field (web: formatValidationError).
         private fun fromValidation(status: Int, item: kotlinx.serialization.json.JsonElement): ApiException {

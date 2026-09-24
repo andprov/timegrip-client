@@ -4,6 +4,17 @@ import android.content.Context
 import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -368,38 +379,50 @@ fun ProjectFilterChip(
 }
 
 /**
- * Finds a project and opens it: a search icon that brings up a plain list of
- * every project (archived ones marked), and tapping one hands it to [onOpen].
- * It filters nothing, so the screen behind stays as it was.
+ * Inline project search that takes the place of a screen's [FilterBar]: same height
+ * and gap, so the list below does not jump. Opens focused with the keyboard up;
+ * the arrow closes it, the cross clears the query.
  */
 @Composable
-fun ProjectSearchButton(projects: List<Project>, onOpen: (Project) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    IconButton(onClick = { open = true }) {
-        Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.search_projects))
-    }
-    if (open) {
-        val (search, onSearch) = rememberProjectSearch()
-        val visible = projects.matching(search)
-        val archived = stringResource(R.string.archived_badge)
-        OptionsWindow(
-            title = stringResource(R.string.filter_projects),
-            onDismiss = { open = false },
-            header = { SearchField(search, onSearch, Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) },
-        ) { close ->
-            noMatches(visible, search)
-            items(visible, key = { it.id }) { project ->
-                OptionRow(
-                    project.name,
-                    selected = false,
-                    control = OptionControl.NONE,
-                    color = project.color,
-                    supporting = archived.takeIf { project.status == ProjectStatus.ARCHIVED },
-                    onClick = {
-                        close()
-                        onOpen(project)
-                    },
+fun SearchBar(value: String, onValueChange: (String) -> Unit, onClose: () -> Unit) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(bottom = FilterBarBottomGap)
+            .height(FilterBarHeight)
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onClose) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.close_search))
+        }
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (value.isEmpty()) {
+                Text(
+                    stringResource(R.string.search),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
+            )
+        }
+        if (value.isNotEmpty()) {
+            IconButton(onClick = { onValueChange("") }) {
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.clear_search))
             }
         }
     }

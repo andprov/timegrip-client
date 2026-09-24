@@ -95,20 +95,30 @@ class SyncViewModel(
     }
 }
 
-/** Cloud icon next to the timer controls: offline, uploading, all synced, or rejected changes. */
+/**
+ * Cloud icon next to the timer controls: rejected changes, offline, uploading,
+ * last sync failed, waiting to upload, or all synced. It spins only while
+ * changes are going out; refreshing data in the background keeps it still.
+ */
 @Composable
 fun SyncStatusButton() {
     val status by LocalAppContainer.current.syncManager.status.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
 
+    val uploading = status.isSyncing && status.pendingCount > 0
+    val problem = status.problem
     val (icon: ImageVector, badge: Int) = when {
         status.failedCount > 0 -> Icons.Outlined.SyncProblem to status.failedCount
         !status.isOnline -> Icons.Outlined.CloudOff to status.pendingCount
-        status.isSyncing -> Icons.Outlined.Sync to 0
+        uploading -> Icons.Outlined.Sync to 0
+        // "All done" only after a sync that actually reached the server.
+        problem is SyncProblem.Network -> Icons.Outlined.CloudOff to status.pendingCount
+        problem != null -> Icons.Outlined.SyncProblem to status.pendingCount
         status.pendingCount > 0 -> Icons.Outlined.CloudUpload to status.pendingCount
         else -> Icons.Outlined.CloudDone to 0
     }
-    val rotation = if (status.isSyncing && icon == Icons.Outlined.Sync) {
+    val alarming = status.failedCount > 0 || (problem != null && problem !is SyncProblem.Network)
+    val rotation = if (uploading) {
         val transition = rememberInfiniteTransition(label = "sync")
         transition.animateFloat(
             initialValue = 360f,
@@ -124,14 +134,14 @@ fun SyncStatusButton() {
         BadgedBox(badge = {
             if (badge > 0) {
                 Badge(
-                    containerColor = if (status.failedCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    containerColor = if (alarming) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 ) { Text(badge.toString()) }
             }
         }) {
             Icon(
                 icon,
                 contentDescription = stringResource(R.string.sync_title),
-                tint = if (status.failedCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = if (alarming) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.rotate(rotation),
             )
         }
@@ -160,20 +170,34 @@ private fun SyncSheet(onDismiss: () -> Unit) {
             }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val problem = status.problem
+                    val problemAt = status.problemAt
+                    // The headline is about the server, not the phone's network: a weak
+                    // signal counts as "online" and still fails to reach it.
                     Text(
                         when {
+                            status.isSyncing && status.pendingCount > 0 -> stringResource(R.string.sync_uploading)
                             status.isSyncing -> stringResource(R.string.sync_syncing)
-                            status.isOnline -> stringResource(R.string.sync_online)
-                            else -> stringResource(R.string.sync_offline)
+                            !status.networkAvailable -> stringResource(R.string.sync_offline)
+                            !status.isOnline -> stringResource(R.string.sync_problem_network)
+                            problem != null -> problemText(problem)
+                            status.lastSyncAt != null -> stringResource(R.string.sync_connected)
+                            else -> stringResource(R.string.sync_online)
                         },
                         style = MaterialTheme.typography.bodyLarge,
+                        color = if (!status.isSyncing && status.networkAvailable && (!status.isOnline || problem != null)) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                     )
-                    Text(
-                        status.lastSyncAt?.let { stringResource(R.string.sync_last, formatDateTime(it, timeFormat)) }
-                            ?: stringResource(R.string.sync_never),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (problem != null && problemAt != null) {
+                        Text(
+                            stringResource(R.string.sync_last_attempt, formatDateTime(problemAt, timeFormat)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     Text(
                         if (status.pendingCount > 0) {
                             pluralStringResource(R.plurals.sync_pending, status.pendingCount, status.pendingCount)
@@ -183,19 +207,19 @@ private fun SyncSheet(onDismiss: () -> Unit) {
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    status.problem?.let { problem ->
-                        Text(
-                            problemText(problem),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
+                    Text(
+                        status.lastSyncAt?.let { stringResource(R.string.sync_last, formatDateTime(it, timeFormat)) }
+                            ?: stringResource(R.string.sync_never),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
             item {
                 Button(
                     onClick = vm::syncNow,
-                    enabled = status.isOnline && !status.isSyncing,
+                    // Enabled while the server looks down too: tapping it is how one checks again.
+                    enabled = status.networkAvailable && !status.isSyncing,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Outlined.Sync, contentDescription = null, modifier = Modifier.size(18.dp))

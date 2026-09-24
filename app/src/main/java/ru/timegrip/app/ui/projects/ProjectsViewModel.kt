@@ -35,6 +35,8 @@ data class ProjectFilters(
 data class ProjectsState(
     val loaded: Boolean = false,
     val filters: ProjectFilters = ProjectFilters(),
+    /** The inline search query; null while the search row is closed. */
+    val search: String? = null,
     val all: List<Project> = emptyList(),
     val visible: List<Project> = emptyList(),
     val runningProjectId: String? = null,
@@ -70,12 +72,14 @@ class ProjectsViewModel(
     private val syncManager: SyncManager,
 ) : ViewModel() {
     private val filters = MutableStateFlow(ProjectFilters())
+    private val search = MutableStateFlow<String?>(null)
 
     val state: StateFlow<ProjectsState> = combine(
         projectRepository.observeProjects(),
         timerRepository.observeRunning(),
         filters,
-    ) { projects, running, f ->
+        search,
+    ) { projects, running, f, query ->
         val byStatus = projects.filter {
             when (f.status) {
                 StatusFilter.ALL -> true
@@ -90,11 +94,15 @@ class ProjectsViewModel(
                 BillingFilter.NON_BILLABLE -> !it.isBillable
             }
         }
+        // The search row hides the filter chips, so a query looks through every project
+        // rather than letting filters the user cannot see drop matches.
+        val needle = query?.trim().orEmpty()
         ProjectsState(
             loaded = true,
             filters = f,
+            search = query,
             all = projects,
-            visible = byBilling,
+            visible = if (needle.isEmpty()) byBilling else projects.filter { it.name.contains(needle, ignoreCase = true) },
             runningProjectId = running?.projectId,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProjectsState())
@@ -117,6 +125,9 @@ class ProjectsViewModel(
 
     fun setBilling(value: BillingFilter) = filters.update { it.copy(billing = value) }
     fun setStatus(value: StatusFilter) = filters.update { it.copy(status = value) }
+    fun openSearch() = search.update { it ?: "" }
+    fun setSearch(value: String) = search.update { value }
+    fun closeSearch() = search.update { null }
 
     fun openNew() {
         editorError = null

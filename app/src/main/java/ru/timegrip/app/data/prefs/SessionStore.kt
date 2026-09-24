@@ -1,5 +1,6 @@
 package ru.timegrip.app.data.prefs
 
+import java.time.Instant
 import android.content.Context
 import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,6 +45,13 @@ class SessionStore(context: Context) {
     var fullSyncDone: Boolean
         get() = prefs.getBoolean(KEY_FULL_SYNC, false)
         set(value) = prefs.edit { putBoolean(KEY_FULL_SYNC, value) }
+
+    /** When a sync last completed, so the status survives an app restart. */
+    var lastSyncAt: Instant?
+        get() = prefs.getLong(KEY_LAST_SYNC, 0L).takeIf { it > 0 }?.let(Instant::ofEpochMilli)
+        set(value) = prefs.edit {
+            if (value == null) remove(KEY_LAST_SYNC) else putLong(KEY_LAST_SYNC, value.toEpochMilli())
+        }
 
     @Synchronized
     fun saveTokens(access: String, refresh: String) {
@@ -118,5 +126,6 @@ class SessionStore(context: Context) {
         const val KEY_EXPIRED = "expired"
         const val KEY_OWNER = "owner_user_id"
         const val KEY_FULL_SYNC = "full_sync_done"
+        const val KEY_LAST_SYNC = "last_sync_at"
     }
 }

@@ -8,6 +8,7 @@ import ru.timegrip.app.data.local.AppDatabase
 import ru.timegrip.app.data.prefs.SessionStore
 import ru.timegrip.app.data.prefs.SettingsStore
 import ru.timegrip.app.data.remote.HttpClientFactory
+import ru.timegrip.app.data.remote.ServerReachability
 import ru.timegrip.app.data.repository.AccountRepository
 import ru.timegrip.app.data.repository.AuthRepository
 import ru.timegrip.app.data.repository.ProjectRepository
@@ -26,12 +27,13 @@ class AppContainer(context: Context) {
     private val json = HttpClientFactory.json
     val sessionStore = SessionStore(context)
     val settingsStore = SettingsStore(context)
-    private val api = HttpClientFactory.createApi(sessionStore, settingsStore)
+    private val serverReachability = ServerReachability(settingsStore)
+    private val api = HttpClientFactory.createApi(sessionStore, settingsStore, serverReachability)
     private val database = AppDatabase.create(context)
     private val outbox = Outbox(database.outboxDao(), json)
 
     private val syncEngine = SyncEngine(database, api, sessionStore, json)
-    val syncManager = SyncManager(context, syncEngine, sessionStore, database.outboxDao(), appScope)
+    val syncManager = SyncManager(context, syncEngine, sessionStore, database.outboxDao(), serverReachability, appScope)
 
     val projectRepository = ProjectRepository(database, outbox, syncManager)
     val timerRepository = TimerRepository(database, outbox, syncManager)

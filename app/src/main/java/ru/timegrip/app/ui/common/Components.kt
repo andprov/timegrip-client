@@ -1,5 +1,6 @@
 package ru.timegrip.app.ui.common
 
+import android.util.Patterns
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -170,6 +171,8 @@ fun PasswordField(
     imeAction: ImeAction = ImeAction.Next,
     supportingText: String? = null,
     isError: Boolean = false,
+    /** Shown in place of [supportingText], in red; see [requiredError]. */
+    errorText: String? = null,
 ) {
     var visible by rememberSaveable { mutableStateOf(false) }
     OutlinedTextField(
@@ -177,8 +180,8 @@ fun PasswordField(
         onValueChange = onValueChange,
         label = { Text(label) },
         singleLine = true,
-        isError = isError,
-        supportingText = supportingText?.let { { Text(it) } },
+        isError = isError || errorText != null,
+        supportingText = (errorText ?: supportingText)?.let { { Text(it) } },
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = imeAction),
         trailingIcon = {
@@ -192,6 +195,23 @@ fun PasswordField(
         modifier = modifier.fillMaxWidth(),
     )
 }
+
+/**
+ * The error under a required field left empty: shown once the form was
+ * submitted ([submitted]) and gone as soon as something is typed in.
+ */
+@Composable
+fun requiredError(submitted: Boolean, value: String): String? =
+    if (submitted && value.isBlank()) stringResource(R.string.field_required) else null
+
+/** Roughly what the server accepts; it still has the last word. */
+fun isValidEmail(value: String): Boolean = Patterns.EMAIL_ADDRESS.matcher(value.trim()).matches()
+
+/** [requiredError], or a malformed address once the form was submitted. */
+@Composable
+fun emailError(submitted: Boolean, value: String): String? =
+    requiredError(submitted, value)
+        ?: if (submitted && !isValidEmail(value)) stringResource(R.string.error_validation_email) else null
 
 @Composable
 fun ConfirmDialog(

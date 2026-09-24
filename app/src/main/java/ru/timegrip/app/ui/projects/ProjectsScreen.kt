@@ -3,6 +3,7 @@ package ru.timegrip.app.ui.projects
 import ru.timegrip.app.ui.common.PanelCard
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material.icons.outlined.AttachMoney
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,10 +26,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -69,11 +72,12 @@ import ru.timegrip.app.ui.common.FabOnList
 import ru.timegrip.app.ui.common.FilterBar
 import ru.timegrip.app.ui.common.FullScreenDialog
 import ru.timegrip.app.ui.common.MessageCard
-import ru.timegrip.app.ui.common.ProjectSearchButton
+import ru.timegrip.app.ui.common.SearchBar
 import ru.timegrip.app.ui.common.SectionLabel
 import ru.timegrip.app.ui.common.SyncMarkIcon
 import ru.timegrip.app.ui.common.appViewModel
 import ru.timegrip.app.ui.common.parseColor
+import ru.timegrip.app.ui.common.requiredError
 import ru.timegrip.app.ui.main.LocalSnackbarHostState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -117,9 +121,21 @@ fun ProjectsScreen() {
             // The filter row stays put while the list scrolls under it, in the same spot
             // as on the other screens, so swiping between them does not move it.
             Column(Modifier.fillMaxSize()) {
-                FilterBar(trailing = { ProjectSearchButton(state.all, vm::openEdit) }) {
-                    BillingFilterChip(state.filters.billing, vm::setBilling)
-                    StatusFilterChip(state.filters.status, vm::setStatus)
+                val search = state.search
+                BackHandler(enabled = search != null, onBack = vm::closeSearch)
+                if (search != null) {
+                    SearchBar(search, vm::setSearch, onClose = vm::closeSearch)
+                } else {
+                    FilterBar(
+                        trailing = {
+                            IconButton(onClick = vm::openSearch) {
+                                Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.search))
+                            }
+                        },
+                    ) {
+                        BillingFilterChip(state.filters.billing, vm::setBilling)
+                        StatusFilterChip(state.filters.status, vm::setStatus)
+                    }
                 }
                 LazyColumn(
                     modifier = Modifier.weight(1f),
@@ -136,7 +152,7 @@ fun ProjectsScreen() {
                             MessageCard(stringResource(R.string.no_projects_match), Modifier.padding(horizontal = 16.dp))
                         }
                         else -> items(state.visible, key = { it.id }) { project ->
-                            ProjectCard(project, showArchivedBadge = state.filters.status == StatusFilter.ALL) {
+                            ProjectCard(project, showArchivedBadge = !search.isNullOrBlank() || state.filters.status == StatusFilter.ALL) {
                                 vm.openEdit(project)
                             }
                         }
@@ -237,6 +253,7 @@ private fun ProjectEditorDialog(editor: ProjectEditor, vm: ProjectsViewModel) {
     var roundToHour by rememberSaveable { mutableStateOf(existing?.roundToHour ?: false) }
     var status by rememberSaveable { mutableStateOf(existing?.status ?: ProjectStatus.ACTIVE) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
+    var submitted by rememberSaveable { mutableStateOf(false) }
     val hasRate = rate.trim().replace(',', '.').toBigDecimalOrNull()?.signum()?.let { it != 0 } ?: false
 
     FullScreenDialog(
@@ -244,7 +261,10 @@ private fun ProjectEditorDialog(editor: ProjectEditor, vm: ProjectsViewModel) {
         actionLabel = stringResource(if (existing == null) R.string.create else R.string.save),
         actionEnabled = !vm.saving,
         onDismiss = vm::closeEditor,
-        onAction = { vm.save(ProjectForm(name, color, rate, roundToHour, status)) },
+        onAction = {
+            submitted = true
+            if (name.isNotBlank()) vm.save(ProjectForm(name, color, rate, roundToHour, status))
+        },
         onDelete = existing?.let { { if (vm.requestDelete(it)) confirmingDelete = true } },
         deleteEnabled = !vm.saving,
     ) {
@@ -253,6 +273,8 @@ private fun ProjectEditorDialog(editor: ProjectEditor, vm: ProjectsViewModel) {
             onValueChange = { name = it },
             label = { Text(stringResource(R.string.project_name)) },
             singleLine = true,
+            isError = requiredError(submitted, name) != null,
+            supportingText = requiredError(submitted, name)?.let { { Text(it) } },
             modifier = Modifier.fillMaxWidth(),
         )
         Column {
