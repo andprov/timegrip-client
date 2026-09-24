@@ -82,8 +82,8 @@ import java.time.ZoneId
  * one for the other, or swiping between screens that each have their own filter row, never
  * shifts anything underneath.
  */
-val FilterBarHeight = 56.dp
-val FilterBarBottomGap = 8.dp
+val FilterBarHeight = 48.dp
+val FilterBarBottomGap = 4.dp
 
 /**
  * The filter chips of a screen, always on one line of a fixed height: no wrapping,

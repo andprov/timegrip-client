@@ -3,6 +3,8 @@ package ru.timegrip.app.ui.main
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
@@ -20,10 +22,12 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -31,9 +35,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import ru.timegrip.app.R
 import ru.timegrip.app.ui.account.AccountScreen
@@ -55,6 +61,9 @@ private val tabs = listOf(
     Tab(R.string.nav_report, Icons.AutoMirrored.Outlined.Article, Icons.AutoMirrored.Filled.Article),
     Tab(R.string.nav_account, Icons.Outlined.AccountCircle, Icons.Filled.AccountCircle),
 )
+
+/** Icon, indicator and label with a few dp to spare above and below. */
+private val NAV_BAR_HEIGHT = 60.dp
 
 /** Messages any screen can show above the bottom bar. */
 val LocalSnackbarHostState = staticCompositionLocalOf { SnackbarHostState() }
@@ -82,15 +91,30 @@ fun MainScreen() {
             bottomBar = {
                 Column {
                     RunningTimerBar()
-                    NavigationBar {
-                        tabs.forEachIndexed { index, tab ->
-                            val selected = pagerState.currentPage == index
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                                icon = { Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = null) },
-                                label = { Text(stringResource(tab.label), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            )
+                    // Material's bar is 80dp tall; the icons and labels fit in 60, which
+                    // brings them down closer to the edge and gives the page the difference.
+                    // The bar's own surface still reaches under the system navigation bar.
+                    Surface(
+                        color = NavigationBarDefaults.containerColor,
+                        tonalElevation = NavigationBarDefaults.Elevation,
+                    ) {
+                        NavigationBar(
+                            modifier = Modifier
+                                .navigationBarsPadding()
+                                .height(NAV_BAR_HEIGHT),
+                            containerColor = Color.Transparent,
+                            tonalElevation = 0.dp,
+                            windowInsets = WindowInsets(0),
+                        ) {
+                            tabs.forEachIndexed { index, tab ->
+                                val selected = pagerState.currentPage == index
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                                    icon = { Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = null) },
+                                    label = { Text(stringResource(tab.label), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                )
+                            }
                         }
                     }
                 }

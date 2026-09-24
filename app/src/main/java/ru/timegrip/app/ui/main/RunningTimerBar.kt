@@ -141,7 +141,7 @@ fun RunningTimerBar() {
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = BAR_HEIGHT)
-                    .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                    .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ColorDot(state.runningProject?.color ?: "#9E9E9E", size = 12.dp)
@@ -155,7 +155,7 @@ fun RunningTimerBar() {
                     )
                     Text(
                         formatElapsed(running.durationSeconds(now)),
-                        style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
+                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                         fontWeight = FontWeight.Bold,
                         color = LocalExtraColors.current.running,
                     )
@@ -167,7 +167,7 @@ fun RunningTimerBar() {
                         containerColor = LocalExtraColors.current.running,
                         contentColor = LocalExtraColors.current.onRunning,
                     ),
-                    modifier = Modifier.height(44.dp),
+                    modifier = Modifier.height(40.dp),
                 ) {
                     Icon(Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(6.dp))
@@ -180,7 +180,7 @@ fun RunningTimerBar() {
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = BAR_HEIGHT)
-                    .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                    .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 FilledTonalButton(
@@ -193,7 +193,7 @@ fun RunningTimerBar() {
                     enabled = state.activeProjects.isNotEmpty() && !vm.busy,
                     modifier = Modifier
                         .weight(1f)
-                        .height(44.dp),
+                        .height(40.dp),
                 ) {
                     Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(6.dp))
@@ -216,4 +216,4 @@ fun RunningTimerBar() {
 }
 
 /** Both states of the bar are this tall, so the sync icon never shifts when a timer starts. */
-private val BAR_HEIGHT = 64.dp
+private val BAR_HEIGHT = 52.dp
