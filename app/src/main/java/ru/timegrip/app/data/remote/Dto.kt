@@ -67,6 +67,8 @@ data class PageDto<T>(
 data class ErrorDto(
     val detail: kotlinx.serialization.json.JsonElement? = null,
     val code: String? = null,
+    /** Pydantic's per-field list (`loc`, `type`, `msg`) next to a `validation_error` detail line. */
+    val errors: kotlinx.serialization.json.JsonArray? = null,
 )
 
 // --- Request bodies ---

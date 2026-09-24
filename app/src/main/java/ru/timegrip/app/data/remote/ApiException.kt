@@ -27,21 +27,30 @@ class ApiException(
 
         fun from(error: HttpException, json: Json): ApiException {
             val body = runCatching { error.response()?.errorBody()?.string() }.getOrNull()
+            return fromBody(error.code(), body, json)
+        }
+
+        internal fun fromBody(status: Int, body: String?, json: Json): ApiException {
             val parsed = body?.let { runCatching { json.decodeFromString(ErrorDto.serializer(), it) }.getOrNull() }
             val detail = parsed?.detail
+            val errors = parsed?.errors
             return when {
+                // The backend's validation answer: the per-field list says exactly what failed.
+                !errors.isNullOrEmpty() -> fromValidation(status, errors.first())
+                // Older backends sent only the `field: message` line.
                 detail is JsonPrimitive && parsed.code == VALIDATION_ERROR ->
-                    fromValidationText(error.code(), detail.contentOrNull)
-                detail is JsonPrimitive -> ApiException(error.code(), parsed.code, detail.contentOrNull)
-                detail is JsonArray && detail.isNotEmpty() -> fromValidation(error.code(), detail.first())
-                else -> ApiException(error.code(), parsed?.code, null)
+                    fromValidationText(status, detail.contentOrNull)
+                detail is JsonPrimitive -> ApiException(status, parsed.code, detail.contentOrNull)
+                // FastAPI's default 422: the list sits in `detail` itself.
+                detail is JsonArray && detail.isNotEmpty() -> fromValidation(status, detail.first())
+                else -> ApiException(status, parsed?.code, null)
             }
         }
 
         /**
-         * The backend's own validation answer: `code: validation_error` and a
-         * `field: message` line, e.g. `email: value is not a valid email address: ...`.
-         * Mapped onto the same `validation.<field>.<type>` codes as Pydantic's list.
+         * A validation answer from a backend that sends only `code: validation_error`
+         * and a `field: message` line, e.g. `email: value is not a valid email address: ...`.
+         * The type is guessed from the message; mapped onto the same codes as Pydantic's list.
          */
         private fun fromValidationText(status: Int, text: String?): ApiException {
             val field = text?.substringBefore(": ", "")?.takeIf { it.matches(FIELD_NAME) }
