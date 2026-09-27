@@ -183,7 +183,7 @@ fun TimersScreen() {
                                 onClick = { if (selecting) vm.toggleSelection(entry) else vm.openEdit(entry) },
                                 onLongClick = { vm.toggleSelection(entry) },
                             )
-                            HorizontalDivider(Modifier.padding(start = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                            HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
                 }

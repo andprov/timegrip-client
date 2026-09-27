@@ -272,7 +272,7 @@ fun ReportScreen() {
                             }
                             items(group.entries, key = { "${group.key}-${it.id}" }) { entry ->
                                 EntryRow(entry, current.projectById[entry.projectId], activeColumns, timeFormat)
-                                HorizontalDivider(Modifier.padding(start = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                                HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                             }
                         }
                     }
