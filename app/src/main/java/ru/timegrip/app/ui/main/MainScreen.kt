@@ -1,11 +1,14 @@
 package ru.timegrip.app.ui.main
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -35,20 +38,29 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.abs
+import kotlin.math.sign
 import ru.timegrip.app.R
 import ru.timegrip.app.ui.account.AccountScreen
 import ru.timegrip.app.ui.dashboard.DashboardScreen
@@ -73,15 +85,45 @@ private val tabs = listOf(
 /** Icon, indicator and label with a few dp to spare above and below. */
 private val NAV_BAR_HEIGHT = 60.dp
 
+private const val PAGE_TURN_MILLIS = 300
+
 /**
- * Turning to a page from the bar or with Back: one even glide, however far the page is.
- * animateScrollToPage jumps most of the way to a page more than three away first.
+ * Turning to a page from the bar or with Back: the page on screen slides off and the new
+ * one slides in beside it, the same way however far apart they are, instead of every page
+ * in between passing by. The page leaving is a picture of it taken at the tap ([layer]
+ * holds what the pager draws); the pager itself jumps straight to the new page and is
+ * shifted aside by [offset], which then brings it in.
  */
-private suspend fun PagerState.glideToPage(page: Int) {
-    val distance = page - currentPage - currentPageOffsetFraction
-    val pageSize = layoutInfo.pageSize + layoutInfo.pageSpacing
-    val duration = (300 + 50 * abs(distance)).toInt().coerceAtMost(500)
-    animateScrollBy(distance * pageSize, tween(duration, easing = FastOutSlowInEasing))
+@Stable
+private class PageTurn(private val pager: PagerState, private val layer: GraphicsLayer) {
+    val offset = Animatable(0f)
+    var leaving by mutableStateOf<ImageBitmap?>(null)
+        private set
+    /** 1 when the new page comes in from the right, -1 from the left. */
+    var direction by mutableIntStateOf(0)
+        private set
+
+    suspend fun to(page: Int) {
+        val direction = (page - pager.currentPage).sign
+        if (direction == 0) {
+            // Half swiped away from this very page, or a newer tap came back to it.
+            offset.snapTo(0f)
+            pager.animateScrollToPage(page)
+            return
+        }
+        val picture = layer.toImageBitmap()
+        val width = (pager.layoutInfo.pageSize + pager.layoutInfo.pageSpacing).toFloat()
+        try {
+            leaving = picture
+            this.direction = direction
+            offset.snapTo(direction * width)
+            pager.scrollToPage(page)
+            offset.animateTo(0f, tween(PAGE_TURN_MILLIS, easing = FastOutSlowInEasing))
+        } finally {
+            // A newer tap has already put its own picture here.
+            if (leaving === picture) leaving = null
+        }
+    }
 }
 
 /** Messages any screen can show above the bottom bar. */
@@ -97,16 +139,20 @@ fun MainScreen() {
     val snackbarHostState = remember { SnackbarHostState() }
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
+    val pagerLayer = rememberGraphicsLayer()
+    val pageTurn = remember(pagerState, pagerLayer) { PageTurn(pagerState, pagerLayer) }
+    var turning by remember { mutableStateOf<Job?>(null) }
     // The page the bar is turning to: its item lights up at once instead of the
     // highlight running through every tab the pages pass on the way.
     var turningTo by remember { mutableStateOf<Int?>(null) }
     val selectedPage = turningTo ?: pagerState.currentPage
 
     fun turnTo(page: Int) {
-        scope.launch {
+        turning?.cancel()
+        turning = scope.launch {
             turningTo = page
             try {
-                pagerState.glideToPage(page)
+                pageTurn.to(page)
             } finally {
                 // A newer tap has already put its own page here.
                 if (turningTo == page) turningTo = null
@@ -157,24 +203,46 @@ fun MainScreen() {
             contentWindowInsets = WindowInsets(0),
         ) { padding ->
             // The tabs are the pages of a pager, so a screen follows the finger and the next one
-            // comes in behind it. The bar below is another way of turning to a page, and the
-            // neighbouring page is composed in advance so it is already drawn when it appears.
-            HorizontalPager(
-                state = pagerState,
-                // No screen has a bar of its own any more, so the pages keep clear of the
-                // status bar here, once, instead of each screen doing it for itself.
-                modifier = Modifier
+            // comes in behind it. The bar below is another way of turning to a page (see
+            // PageTurn), and the neighbouring page is composed in advance so it is already
+            // drawn when it appears.
+            // No screen has a bar of its own any more, so the pages keep clear of the
+            // status bar here, once, instead of each screen doing it for itself.
+            Box(
+                Modifier
                     .padding(padding)
                     .statusBarsPadding(),
-                beyondViewportPageCount = 1,
-                key = { it },
-            ) { page ->
-                when (page) {
-                    0 -> DashboardScreen()
-                    1 -> ProjectsScreen()
-                    2 -> TimersScreen()
-                    3 -> ReportScreen()
-                    else -> AccountScreen()
+            ) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { translationX = pageTurn.offset.value }
+                        .drawWithContent {
+                            pagerLayer.record { this@drawWithContent.drawContent() }
+                            drawLayer(pagerLayer)
+                        },
+                    beyondViewportPageCount = 1,
+                    key = { it },
+                ) { page ->
+                    when (page) {
+                        0 -> DashboardScreen()
+                        1 -> ProjectsScreen()
+                        2 -> TimersScreen()
+                        3 -> ReportScreen()
+                        else -> AccountScreen()
+                    }
+                }
+                pageTurn.leaving?.let { picture ->
+                    Canvas(
+                        Modifier
+                            .matchParentSize()
+                            .graphicsLayer {
+                                translationX = pageTurn.offset.value - pageTurn.direction * size.width
+                            },
+                    ) {
+                        drawImage(picture)
+                    }
                 }
             }
         }
