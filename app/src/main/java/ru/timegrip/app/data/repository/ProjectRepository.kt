@@ -51,11 +51,12 @@ class ProjectRepository(
             projectDao.upsert(project)
             outbox.projectCreated(project)
         }
-        syncManager.requestSync()
+        syncManager.requestPush()
     }
 
     /** Returns the saved project. */
     suspend fun update(id: String, input: ProjectInput): Project {
+        var changed = true
         val saved = db.withTransaction {
             val existing = projectDao.get(id)?.takeUnless { it.deleted } ?: throw DomainException("project_not_found")
             if (input.status == ProjectStatus.ARCHIVED && existing.status != ProjectStatus.ARCHIVED.wire &&
@@ -70,11 +71,15 @@ class ProjectRepository(
                 roundToHour = input.roundToHour && input.hourlyRate != null,
                 status = input.status.wire,
             )
-            projectDao.upsert(project)
-            outbox.projectUpdated(project)
+            // Saved without a change: nothing to store or send.
+            changed = project != existing
+            if (changed) {
+                projectDao.upsert(project)
+                outbox.projectUpdated(project)
+            }
             project
         }
-        syncManager.requestSync()
+        if (changed) syncManager.requestPush()
         return Project(
             id = saved.id,
             name = saved.name,
@@ -106,7 +111,7 @@ class ProjectRepository(
                 outbox.deleted(id, OpType.PROJECT_DELETE, OpType.PROJECT_UPDATE)
             }
         }
-        syncManager.requestSync()
+        syncManager.requestPush()
     }
 
     suspend fun hasRunningTimer(projectId: String): Boolean =

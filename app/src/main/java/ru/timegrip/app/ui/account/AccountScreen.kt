@@ -63,6 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import ru.timegrip.app.BuildConfig
 import ru.timegrip.app.R
@@ -109,12 +110,12 @@ class AccountViewModel(
     var busy by mutableStateOf(false)
         private set
 
-    init {
-        loadSessions()
-    }
+    private var sessionsJob: Job? = null
 
+    /** Called by the screen once online; a load already under way is not repeated. */
     fun loadSessions() {
-        viewModelScope.launch {
+        if (sessionsJob?.isActive == true) return
+        sessionsJob = viewModelScope.launch {
             sessionsError = null
             try {
                 sessions = account.sessions()
@@ -138,7 +139,7 @@ class AccountViewModel(
 
     fun revoke(id: Long) = act {
         account.revokeSession(id)
-        sessions = account.sessions()
+        sessions = sessions?.filterNot { it.id == id }
     }
 
     fun revokeAll() = act { account.revokeAllSessions() }

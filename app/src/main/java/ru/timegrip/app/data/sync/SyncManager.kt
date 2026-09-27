@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.os.SystemClock
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.CancellationException
@@ -23,6 +24,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import ru.timegrip.app.data.local.OutboxCounts
 import ru.timegrip.app.data.local.OutboxDao
+import ru.timegrip.app.data.local.OutboxState
 import ru.timegrip.app.data.prefs.SessionStore
 import ru.timegrip.app.data.remote.ApiException
 import ru.timegrip.app.data.remote.ServerReachability
@@ -62,18 +64,20 @@ data class SyncStatus(
  * Decides when to sync and makes sure only one sync runs at a time. Changes
  * are pushed as soon as they are made while online; otherwise WorkManager
  * (see [SyncWorker]) delivers them once the network is back, even if the app
- * has been closed.
+ * has been closed. The server's data is only downloaded while the app is on
+ * screen: a closed app spends no battery and no traffic on it.
  */
 class SyncManager(
     private val context: Context,
     private val engine: SyncEngine,
     private val sessionStore: SessionStore,
-    outboxDao: OutboxDao,
+    private val outboxDao: OutboxDao,
     private val reachability: ServerReachability,
     private val scope: CoroutineScope,
 ) {
     private val mutex = Mutex()
     private val queued = AtomicBoolean(false)
+    private val pullWanted = AtomicBoolean(false)
     private val requestedRange = AtomicReference<DateRange?>(null)
     private val recentRangePulls = mutableMapOf<DateRange, Long>()
 
@@ -83,6 +87,10 @@ class SyncManager(
     private val lastSyncAt = MutableStateFlow(sessionStore.lastSyncAt)
     private val problem = MutableStateFlow<Pair<SyncProblem, Instant>?>(null)
     private var reconnectJob: Job? = null
+
+    /** When the recent window was last pulled successfully ([SystemClock.elapsedRealtime]). */
+    @Volatile
+    private var lastPullAt: Long? = null
 
     /**
      * Online means our server answers, not that the phone has a network: on a
@@ -165,16 +173,41 @@ class SyncManager(
                 }
             }
         }
+
+        // Leaving the screen with changes not sent yet: from now on WorkManager
+        // delivers them, once the network and the server are there.
+        scope.launch {
+            foreground.distinctUntilChanged().collect { visible ->
+                if (!visible && canSync() && outboxDao.getAll().any { it.state != OutboxState.FAILED }) {
+                    SyncWorker.enqueue(context)
+                }
+            }
+        }
     }
 
     /**
-     * Asks for a sync soon. [range] additionally refreshes the entries of a
-     * period the user is looking at (the regular sync covers recent months).
+     * Asks for a sync soon: local changes go up, the server's data comes down.
+     * In the background (the network came back, the server answered again)
+     * only changes go up; coming to the foreground downloads anyway.
      */
-    fun requestSync(range: DateRange? = null) {
+    fun requestSync() = schedule(null, pull = isVisible())
+
+    /**
+     * Sends local changes soon. The server answers each with the saved record,
+     * which replaces the local one, so nothing needs downloading afterwards.
+     * On screen the app sends them itself, and knocks while the server is away;
+     * in the background (Stop in the notification) WorkManager does, once the
+     * network and the server are there. Never both: that sent a change twice.
+     */
+    fun requestPush() {
         if (!canSync()) return
+        if (isVisible()) schedule(null, pull = false) else SyncWorker.enqueue(context)
+    }
+
+    private fun schedule(range: DateRange?, pull: Boolean) {
+        if (!canSync()) return
+        if (pull) pullWanted.set(true)
         if (range != null) requestedRange.set(range)
-        SyncWorker.enqueue(context)
         // No network, or the server is known to be down: WorkManager and the
         // probes above take over, so nothing spins in vain.
         // Read the sources, not [isOnline]: it lags a moment behind them.
@@ -184,42 +217,72 @@ class SyncManager(
         }
     }
 
-    /** Refreshes a period shown on screen, at most once a minute per period. */
+    /**
+     * Downloads the entries of a period shown on screen, at most once a minute
+     * per period. The regular sync covers recent months, so only an older
+     * period costs a request, and only for its own entries.
+     */
     fun requestRangeRefresh(range: DateRange) {
+        if (!isVisible()) return
         val now = System.currentTimeMillis()
         synchronized(recentRangePulls) {
             val last = recentRangePulls[range]
             if (last != null && now - last < RANGE_REFRESH_INTERVAL_MS) return
             recentRangePulls[range] = now
         }
-        requestSync(range)
+        schedule(range, pull = false)
     }
 
-    /** Runs a sync now and waits for it; true when it completed. */
-    suspend fun syncNow(range: DateRange? = null): Boolean {
+    /**
+     * Runs a sync now and waits for it; true when it completed. [force] (the
+     * user asked for it) downloads even if a sync has just done so.
+     */
+    suspend fun syncNow(range: DateRange? = null, force: Boolean = false): Boolean {
+        pullWanted.set(true)
         if (range != null) requestedRange.set(range)
-        return runSync()
+        return runSync(force)
     }
 
-    private suspend fun runSync(): Boolean = mutex.withLock {
+    /** Sends local changes and waits; true when it completed. Never downloads (see [SyncWorker]). */
+    suspend fun pushNow(): Boolean = runSync(pushOnly = true)
+
+    /**
+     * Opening the app asks for a sync from several places at once (the app
+     * coming to the foreground, the worker, every screen's first range). They
+     * queue on [mutex]; once one has downloaded, the others only push.
+     */
+    private suspend fun runSync(force: Boolean = false, pushOnly: Boolean = false): Boolean = mutex.withLock {
         queued.set(false)
         if (!canSync()) return false
-        val range = requestedRange.getAndSet(null)
+        // A sync queued behind one that just found the server down would only fail
+        // the same way; the probes ask for a new one once it answers. The user's
+        // own request ([force]) and the worker (no probes in the background) try.
+        if (!force && !pushOnly && reachability.reachable.value == false) return false
+        // Downloads only happen on screen. A push-only run, or any run in the
+        // background (the server came back after a failed sync), leaves a wanted
+        // download to the next sync on screen.
+        val mayPull = !pushOnly && isVisible()
+        val range = if (mayPull) requestedRange.getAndSet(null) else null
+        var wantPull = mayPull && pullWanted.getAndSet(false)
         syncing.value = true
         try {
             engine.push()
-            if (!sessionStore.fullSyncDone) {
-                engine.pull(null, null)
-                sessionStore.fullSyncDone = true
+            if (mayPull) wantPull = engine.takePullNeeded() || wantPull
+            val startedAt = SystemClock.elapsedRealtime()
+            val fresh = !force && lastPullAt?.let { startedAt - it < PULL_FRESH_MS } == true
+            val window = DateRange(LocalDate.now().minusMonths(1).withDayOfMonth(1), null)
+            // Without a wanted download only a requested period comes down.
+            val plan = if (wantPull || range != null) {
+                pullPlan(sessionStore.fullSyncDone, fresh || !wantPull, window, range)
             } else {
-                val window = DateRange(LocalDate.now().minusMonths(1).withDayOfMonth(1), null)
-                engine.pull(window.startInstant, null)
-                if (range != null && !range.isAll && range.from?.isBefore(window.from) != false) {
-                    engine.pull(range.startInstant, range.endInstant)
-                } else if (range != null && range.isAll) {
-                    engine.pull(null, null)
-                }
+                emptyList()
             }
+            // The first pull for an account starts from an empty database: whatever
+            // ran moments ago (before signing out and in again) counts for nothing.
+            engine.pull(plan, refreshAccount = !fresh || !sessionStore.fullSyncDone)
+            if (plan.any { it == window || it.isAll }) lastPullAt = startedAt
+            if (DateRange.ALL in plan) sessionStore.fullSyncDone = true
+            wantPull = false
             val now = Instant.now()
             lastSyncAt.value = now
             sessionStore.lastSyncAt = now
@@ -231,6 +294,8 @@ class SyncManager(
             problem.value = classify(error) to Instant.now()
             false
         } finally {
+            // Not downloaded after all: the next sync on screen does it.
+            if (wantPull) pullWanted.set(true)
             syncing.value = false
         }
     }
@@ -238,9 +303,18 @@ class SyncManager(
     fun clearState() {
         lastSyncAt.value = null
         sessionStore.lastSyncAt = null
+        lastPullAt = null
         problem.value = null
         synchronized(recentRangePulls) { recentRangePulls.clear() }
     }
+
+    /**
+     * The state itself, not its flow: the flow only catches up after the
+     * observers of a lifecycle event ran, so during the app's own ON_START
+     * (which asks for a sync) it would still say "in the background".
+     */
+    fun isVisible(): Boolean =
+        ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
 
     private fun canSync(): Boolean {
         val session = sessionStore.state.value
@@ -265,5 +339,20 @@ class SyncManager(
         const val RECONNECT_SETTLE_MS = 3_000L
         const val PROBE_FIRST_DELAY_MS = 10_000L
         const val PROBE_MAX_DELAY_MS = 60_000L
+        const val PULL_FRESH_MS = 30_000L
     }
 }
+
+/**
+ * The periods a sync downloads, [DateRange.ALL] meaning the whole history.
+ * [fresh]: the recent [window] was pulled moments ago, so it is not asked for
+ * again; a [requested] period inside it neither.
+ */
+internal fun pullPlan(fullSyncDone: Boolean, fresh: Boolean, window: DateRange, requested: DateRange?): List<DateRange> =
+    when {
+        !fullSyncDone || requested?.isAll == true -> listOf(DateRange.ALL)
+        else -> buildList {
+            if (!fresh) add(window)
+            if (requested != null && requested.from?.isBefore(window.from) != false) add(requested)
+        }
+    }

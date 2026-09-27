@@ -26,8 +26,9 @@ data class SessionState(
 /**
  * Tokens and the cached profile. Reads are synchronous because OkHttp's
  * interceptors run on its own threads and need the token immediately.
+ * [accessDeadline] tells when an access token runs out on this phone's clock.
  */
-class SessionStore(context: Context) {
+class SessionStore(context: Context, private val accessDeadline: (String) -> Long? = { null }) {
     private val prefs = context.getSharedPreferences("session", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -36,6 +37,9 @@ class SessionStore(context: Context) {
 
     val accessToken: String? get() = _state.value.accessToken
     val refreshToken: String? get() = _state.value.refreshToken
+
+    /** When the access token runs out on this phone's clock, if known. */
+    val accessExpiresAt: Long? get() = prefs.getLong(KEY_ACCESS_EXPIRES, 0L).takeIf { it > 0 }
     val user: User? get() = _state.value.user
 
     /** Whose projects and timers the local database holds. */
@@ -59,6 +63,7 @@ class SessionStore(context: Context) {
             putString(KEY_ACCESS, access)
             putString(KEY_REFRESH, refresh)
             putBoolean(KEY_EXPIRED, false)
+            accessDeadline(access)?.let { putLong(KEY_ACCESS_EXPIRES, it) } ?: remove(KEY_ACCESS_EXPIRES)
         }
         _state.update { it.copy(accessToken = access, refreshToken = refresh, expired = false) }
     }
@@ -82,6 +87,7 @@ class SessionStore(context: Context) {
         prefs.edit {
             remove(KEY_ACCESS)
             remove(KEY_REFRESH)
+            remove(KEY_ACCESS_EXPIRES)
             putBoolean(KEY_EXPIRED, true)
         }
         _state.update { it.copy(accessToken = null, refreshToken = null, expired = true) }
@@ -122,6 +128,7 @@ class SessionStore(context: Context) {
     private companion object {
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
+        const val KEY_ACCESS_EXPIRES = "access_expires_at"
         const val KEY_USER = "user"
         const val KEY_EXPIRED = "expired"
         const val KEY_OWNER = "owner_user_id"

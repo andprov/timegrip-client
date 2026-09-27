@@ -8,11 +8,13 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [ProjectEntity::class, TimerEntity::class, OutboxEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
     autoMigrations = [
         // 2: timers remember their start and stop on the monotonic clock.
         AutoMigration(from = 1, to = 2),
+        // 3: the outbox remembers which requests already went out.
+        AutoMigration(from = 2, to = 3),
     ],
 )
 abstract class AppDatabase : RoomDatabase() {

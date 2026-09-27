@@ -52,7 +52,7 @@ class SyncIssuesRepository(
     /** Sends the record's rejected changes again (e.g. after fixing the cause on the web). */
     suspend fun retry(entityId: String) {
         outboxDao.retryEntity(entityId)
-        syncManager.requestSync()
+        syncManager.requestPush()
     }
 
     /** Drops the record's unsent changes and goes back to the server's version of it. */
@@ -82,16 +82,17 @@ class SyncIssuesRepository(
                 true
             }
         }
-        if (restoreFromServer && syncManager.isOnline.value) {
-            runCatching {
-                if (entityId == USER_ENTITY_ID) {
-                    syncEngine.refreshUser()
-                } else {
-                    syncEngine.refreshRecord(entityId)
-                }
+        val restored = restoreFromServer && syncManager.isOnline.value && runCatching {
+            if (entityId == USER_ENTITY_ID) {
+                syncEngine.refreshUser()
+            } else {
+                syncEngine.refreshRecord(entityId)
             }
-        }
-        syncManager.requestSync()
+        }.isSuccess
+        // Changes queued behind the dropped ones go out now. The record itself
+        // came back from the server just above; only when that failed (offline,
+        // say) does a download bring it back.
+        if (restored || !restoreFromServer) syncManager.requestPush() else syncManager.requestSync()
     }
 
     companion object {

@@ -1,5 +1,6 @@
 package ru.timegrip.app.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.Index
@@ -77,6 +78,8 @@ data class OutboxEntity(
     val errorCode: String? = null,
     val errorMessage: String? = null,
     val createdAt: Long,
+    /** The request went out at least once, so the server may have applied it already. */
+    @ColumnInfo(defaultValue = "0") val sent: Boolean = false,
 )
 
 object OutboxState {

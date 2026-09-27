@@ -33,18 +33,18 @@ class AccountRepository(
     private val authRepository: AuthRepository,
 ) {
     suspend fun setTimeFormat(timeFormat: TimeFormat) {
-        val user = sessionStore.user ?: return
+        val user = sessionStore.user?.takeIf { it.timeFormat != timeFormat } ?: return
         db.withTransaction { outbox.userValueChanged(OpType.USER_TIME_FORMAT, timeFormat.wire) }
         sessionStore.saveUser(user.copy(timeFormat = timeFormat))
-        syncManager.requestSync()
+        syncManager.requestPush()
     }
 
     suspend fun setLocale(locale: AppLocale) {
-        val user = sessionStore.user ?: return
+        val user = sessionStore.user?.takeIf { it.locale != locale } ?: return
         db.withTransaction { outbox.userValueChanged(OpType.USER_LOCALE, locale.wire) }
         sessionStore.saveUser(user.copy(locale = locale))
         Locales.apply(locale)
-        syncManager.requestSync()
+        syncManager.requestPush()
     }
 
     suspend fun refreshUser() = syncEngine.refreshUser()
@@ -81,11 +81,11 @@ class AccountRepository(
 
     suspend fun revokeAllSessions() {
         apiCall(json) { api.revokeAllSessions() }
-        authRepository.signOut()
+        authRepository.signOut(revoke = false)
     }
 
     suspend fun deleteAccount() {
         apiCall(json) { api.deleteMe() }
-        authRepository.signOut()
+        authRepository.signOut(revoke = false)
     }
 }

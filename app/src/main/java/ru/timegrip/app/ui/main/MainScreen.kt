@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -48,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -225,12 +227,23 @@ fun MainScreen() {
                     beyondViewportPageCount = 1,
                     key = { it },
                 ) { page ->
-                    when (page) {
-                        0 -> DashboardScreen()
-                        1 -> ProjectsScreen()
-                        2 -> TimersScreen()
-                        3 -> ReportScreen()
-                        else -> AccountScreen()
+                    // Focus only enters the page on screen. A key typed on a hardware
+                    // keyboard (into a dialog's password field, say) can reach this window
+                    // with nothing focused; the first focusable then takes it, which may
+                    // sit on the page composed beside this one, and the pager would turn
+                    // there by itself.
+                    Box(
+                        Modifier
+                            .focusProperties { onEnter = { if (page != pagerState.currentPage) cancelFocusChange() } }
+                            .focusGroup(),
+                    ) {
+                        when (page) {
+                            0 -> DashboardScreen()
+                            1 -> ProjectsScreen()
+                            2 -> TimersScreen()
+                            3 -> ReportScreen()
+                            else -> AccountScreen()
+                        }
                     }
                 }
                 pageTurn.leaving?.let { picture ->

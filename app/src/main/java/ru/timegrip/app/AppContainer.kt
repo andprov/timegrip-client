@@ -11,6 +11,7 @@ import ru.timegrip.app.data.remote.AndroidDeviceClock
 import ru.timegrip.app.data.remote.HttpClientFactory
 import ru.timegrip.app.data.remote.ServerClock
 import ru.timegrip.app.data.remote.ServerReachability
+import ru.timegrip.app.data.remote.jwtExpiry
 import ru.timegrip.app.data.repository.AccountRepository
 import ru.timegrip.app.data.repository.AuthRepository
 import ru.timegrip.app.data.repository.ProjectRepository
@@ -27,10 +28,10 @@ class AppContainer(context: Context) {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val json = HttpClientFactory.json
-    val sessionStore = SessionStore(context)
-    val settingsStore = SettingsStore(context)
     private val deviceClock = AndroidDeviceClock(context)
     private val serverClock = ServerClock(deviceClock)
+    val sessionStore = SessionStore(context) { token -> jwtExpiry(token)?.let(serverClock::toDevice) }
+    val settingsStore = SettingsStore(context)
     private val serverReachability = ServerReachability(settingsStore, serverClock)
     private val api = HttpClientFactory.createApi(sessionStore, settingsStore, serverReachability, serverClock)
     private val database = AppDatabase.create(context)

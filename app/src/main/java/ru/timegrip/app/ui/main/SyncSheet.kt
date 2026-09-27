@@ -83,7 +83,7 @@ class SyncViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun syncNow() {
-        viewModelScope.launch { syncManager.syncNow() }
+        viewModelScope.launch { syncManager.syncNow(force = true) }
     }
 
     fun retry(entityId: String) {

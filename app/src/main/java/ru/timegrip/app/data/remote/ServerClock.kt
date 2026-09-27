@@ -69,6 +69,12 @@ class ServerClock(private val device: DeviceClock) {
         return if (abs(ahead) > DATE_PRECISION_MS) wall - ahead else wall
     }
 
+    /** This phone's wall time when the server's clock shows [server]; [server] itself while nothing is known. */
+    fun toDevice(server: Long): Long {
+        val s = sample ?: return server
+        return server + (s.wall - s.server)
+    }
+
     private companion object {
         /** A smaller difference is within what a `Date` header can tell. */
         const val DATE_PRECISION_MS = 2_000L

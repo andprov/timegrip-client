@@ -147,7 +147,7 @@ class DashboardViewModel(
     fun refresh() {
         viewModelScope.launch {
             refreshing = true
-            syncManager.syncNow(filters.value.range)
+            syncManager.syncNow(filters.value.range, force = true)
             refreshing = false
         }
     }

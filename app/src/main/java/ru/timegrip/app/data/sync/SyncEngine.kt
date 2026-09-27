@@ -1,5 +1,6 @@
 package ru.timegrip.app.data.sync
 
+import android.os.SystemClock
 import androidx.room.withTransaction
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
@@ -23,10 +24,12 @@ import ru.timegrip.app.data.remote.TimeFormatBody
 import ru.timegrip.app.data.remote.TimeGripApi
 import ru.timegrip.app.data.remote.TimerCreateBody
 import ru.timegrip.app.data.remote.TimerDto
+import ru.timegrip.app.data.remote.TimerIdsBody
 import ru.timegrip.app.data.remote.TimerStartBody
 import ru.timegrip.app.data.remote.UserDto
 import ru.timegrip.app.data.remote.apiCall
 import ru.timegrip.app.domain.AppLocale
+import ru.timegrip.app.domain.DateRange
 import ru.timegrip.app.domain.ProjectStatus
 import ru.timegrip.app.domain.TimeFormat
 import ru.timegrip.app.domain.User
@@ -60,6 +63,17 @@ class SyncEngine(
     private val timerDao = db.timerDao()
     private val outboxDao = db.outboxDao()
 
+    /** When the profile last came from the server ([SystemClock.elapsedRealtime]). */
+    @Volatile
+    private var userStoredAt: Long? = null
+
+    /** A push found the server holding something the local copy does not show yet. */
+    @Volatile
+    private var pullNeeded = false
+
+    /** Whether the last push calls for a download; asking clears it. */
+    fun takePullNeeded(): Boolean = pullNeeded.also { pullNeeded = false }
+
     /** A dependency (a project, an earlier creation) has not reached the server yet. */
     private class Blocked : Exception()
 
@@ -73,6 +87,7 @@ class SyncEngine(
      */
     suspend fun push() {
         outboxDao.resetInFlight()
+        deleteTimersTogether()
         var progressed = true
         while (progressed) {
             progressed = false
@@ -125,13 +140,16 @@ class SyncEngine(
     /**
      * Creating a project is not idempotent and the server allows duplicate
      * names, so a retry after a lost response would create a second project.
-     * Before creating, the engine looks for an identical server project that
-     * no local record owns yet and adopts it instead.
+     * Before sending the creation again, the engine looks for an identical
+     * server project that no local record owns yet and adopts it instead.
      */
     private suspend fun createProject(op: OutboxEntity) {
         val payload = decode<ProjectPayload>(op.payload)
-        val created = findSameProject(payload) ?: call {
-            api.createProject(ProjectCreateBody(payload.name, payload.color, payload.hourlyRate, payload.roundToHour))
+        val created = (if (op.sent) findSameProject(payload) else null) ?: run {
+            outboxDao.markSent(op.seq)
+            call {
+                api.createProject(ProjectCreateBody(payload.name, payload.color, payload.hourlyRate, payload.roundToHour))
+            }
         }
         db.withTransaction {
             // The server id is stored with the creation itself, so nothing that
@@ -247,6 +265,7 @@ class SyncEngine(
                 timerDao.getByServerId(running.id) != null
             ) {
                 outboxDao.delete(op.seq)
+                pullNeeded = true
                 return
             }
             running
@@ -380,6 +399,35 @@ class SyncEngine(
         db.withTransaction { removeTimerLocally(op.entityId) }
     }
 
+    /**
+     * Deleting a selection of entries queues one deletion per entry; they go
+     * out as one request. Should the server refuse the batch (an entry deleted
+     * elsewhere, one still to be stopped), the loop in [push] sends them one by
+     * one and handles each refusal on its own.
+     */
+    private suspend fun deleteTimersTogether() {
+        val blocked = outboxDao.getAll().filter { it.state == OutboxState.FAILED }.mapTo(mutableSetOf()) { it.entityId }
+        val batch = outboxDao.getPending().mapNotNull { op ->
+            if (op.type != OpType.TIMER_DELETE || op.entityId in blocked) return@mapNotNull null
+            // Anything queued before it (a stop) has to reach the server first.
+            if (outboxDao.getForEntity(op.entityId).first().seq != op.seq) return@mapNotNull null
+            timerDao.get(op.entityId)?.serverId?.let { op to it }
+        }
+        if (batch.size < 2) return
+        for ((op, _) in batch) outboxDao.setState(op.seq, OutboxState.IN_FLIGHT)
+        try {
+            call { api.deleteTimers(TimerIdsBody(batch.map { it.second })) }
+        } catch (error: ApiException) {
+            for ((op, _) in batch) outboxDao.setState(op.seq, OutboxState.PENDING)
+            if (error.isTransient || error.status == 401 || error.code == "access_denied") throw error
+            return
+        } catch (error: Throwable) {
+            for ((op, _) in batch) outboxDao.setState(op.seq, OutboxState.PENDING)
+            throw error
+        }
+        db.withTransaction { for ((op, _) in batch) removeTimerLocally(op.entityId) }
+    }
+
     private suspend fun updateUser(op: OutboxEntity, send: suspend (String) -> UserDto) {
         val value = decode<ValuePayload>(op.payload).value
         val dto = call { send(value) }
@@ -390,23 +438,39 @@ class SyncEngine(
     // --- pull ---
 
     /**
-     * Downloads projects, the running timer and the entries that start within
-     * [from]..[to] (open bounds allowed), and reconciles the local copy.
-     * Records with queued changes are left alone: local edits win until they
-     * are sent.
+     * Downloads the profile and the projects once, then for each of [periods]
+     * the entries that start within it (open bounds allowed), and reconciles
+     * the local copy. Records with queued changes are left alone: local edits
+     * win until they are sent. Past periods alone only need their entries: the
+     * profile and the projects come with the regular pull, open towards now.
+     * [refreshAccount] false: that pull ran moments ago, so they are fresh.
      */
-    suspend fun pull(from: Instant?, to: Instant?) {
-        val user = call { api.me() }
-        storeUser(user)
-        if (!user.isActive) return
+    suspend fun pull(periods: List<DateRange>, refreshAccount: Boolean = true) {
+        if (periods.isEmpty()) return
+        if (refreshAccount && periods.any { it.endInstant == null }) {
+            // Signing in, activating or a previous pull has just fetched the profile.
+            val recent = sessionStore.user?.takeIf {
+                userStoredAt?.let { SystemClock.elapsedRealtime() - it < USER_FRESH_MS } == true
+            }
+            val isActive = recent?.isActive ?: call { api.me() }.also { storeUser(it) }.isActive
+            if (!isActive) return
 
-        val projects = fetchAllProjects()
-        db.withTransaction { reconcileProjects(projects) }
+            val projects = fetchAllProjects()
+            db.withTransaction { reconcileProjects(projects) }
+        }
 
-        val running = fetchRunning()
-        val timers = fetchAllTimers(from, to)
-        db.withTransaction { reconcileTimers(timers, running, from, to) }
-        refreshStaleRunning(running)
+        for (period in periods) {
+            val from = period.startInstant
+            val to = period.endInstant
+            val timers = fetchAllTimers(from, to)
+            // The server lists entries by start, running ones included, so a list
+            // open towards now holds the running timer: no `timers/running` needed.
+            // One started before [from] is only missed if this phone never saw it.
+            val current = to == null
+            val running = if (current) timers.firstOrNull { it.endTime == null } else null
+            db.withTransaction { reconcileTimers(timers, running, from, to) }
+            if (current) refreshStaleRunning(running)
+        }
     }
 
     private suspend fun reconcileProjects(remote: List<ProjectDto>) {
@@ -607,8 +671,12 @@ class SyncEngine(
 
     suspend fun refreshUser() = storeUser(call { api.me() })
 
-    /** Saves the profile from the server, keeping account settings still queued locally. */
-    suspend fun storeUser(dto: UserDto) {
+    /**
+     * Saves the profile from the server, keeping account settings still queued
+     * locally. Without a session it is dropped (an answer that arrived after
+     * signing out), unless it belongs to the sign-in under way ([signingIn]).
+     */
+    suspend fun storeUser(dto: UserDto, signingIn: Boolean = false) {
         val pending = outboxDao.getForEntity(USER_ENTITY_ID).map { it.type }.toSet()
         val cached = sessionStore.user
         // Settings changed offline stay as the user left them until they are sent.
@@ -623,7 +691,10 @@ class SyncEngine(
             },
             locale = if (OpType.USER_LOCALE in pending && cached != null) cached.locale else AppLocale.fromWire(dto.locale),
         )
-        if (sessionStore.state.value.accessToken != null) sessionStore.saveUser(user)
+        if (signingIn || sessionStore.state.value.accessToken != null) {
+            sessionStore.saveUser(user)
+            userStoredAt = SystemClock.elapsedRealtime()
+        }
     }
 
     /**
@@ -670,6 +741,9 @@ class SyncEngine(
     private inline fun <reified T> decode(payload: String): T = json.decodeFromString(payload)
 
     companion object {
+        /** A profile fetched this recently is not asked for again by [pull]. */
+        const val USER_FRESH_MS = 30_000L
+
         /** How stale a start may be and still be replayed as a live `POST /timers/start`. */
         const val START_GRACE_MS = 10_000L
 

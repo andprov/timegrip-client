@@ -15,7 +15,7 @@ class TimeGripApplication : Application() {
         container = AppContainer(this)
         container.runningTimerNotifier.start()
 
-        if (container.sessionStore.state.value.isSignedIn) SyncWorker.schedulePeriodic(this)
+        SyncWorker.cancelPeriodic(this)
 
         // Fresh data whenever the app comes to the foreground.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {

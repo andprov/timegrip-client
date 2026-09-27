@@ -122,6 +122,9 @@ data class ProjectCreateBody(
 )
 
 @Serializable
+data class TimerIdsBody(val ids: List<String>)
+
+@Serializable
 data class TimerStartBody(
     @SerialName("project_id") val projectId: String,
     /** When a timer started offline was really started; omitted, the server starts it now. */

@@ -189,7 +189,7 @@ class ProjectsViewModel(
     fun refresh() {
         viewModelScope.launch {
             refreshing = true
-            syncManager.syncNow()
+            syncManager.syncNow(force = true)
             refreshing = false
         }
     }

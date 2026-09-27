@@ -28,6 +28,7 @@ import ru.timegrip.app.domain.toLocalDate
 import ru.timegrip.app.domain.zone
 import ru.timegrip.app.ui.common.UiMessage
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import java.time.LocalTime
 
 data class TimerFilters(
@@ -161,9 +162,14 @@ class TimersViewModel(
     fun save(form: TimerForm): Boolean {
         val target = editor ?: return false
         val projectId = form.projectId
-        val start = form.startDate?.let { d -> form.startTime?.let { d.atTime(it) } }?.atZone(zone())?.toInstant()
-        var end = form.endDate?.let { d -> form.endTime?.let { d.atTime(it) } }?.atZone(zone())?.toInstant()
-        if (projectId == null || start == null || end == null) return false
+        val typedStart = form.startDate?.let { d -> form.startTime?.let { d.atTime(it) } }?.atZone(zone())?.toInstant()
+        val typedEnd = form.endDate?.let { d -> form.endTime?.let { d.atTime(it) } }?.atZone(zone())?.toInstant()
+        if (projectId == null || typedStart == null || typedEnd == null) return false
+        // The form shows minutes: a time left as it was keeps its seconds,
+        // rather than being cut to the minute by merely saving.
+        val entry = (target as? TimerEditor.Existing)?.entry
+        val start = entry?.start?.takeIf { it.truncatedTo(ChronoUnit.MINUTES) == typedStart } ?: typedStart
+        var end = entry?.end?.takeIf { it.truncatedTo(ChronoUnit.MINUTES) == typedEnd } ?: typedEnd
         // The pickers resolve to minutes, so equal times mean "one minute apart"
         // to the user; a second later satisfies the strict end > start rule.
         if (end == start) end = end.plusSeconds(1)
@@ -200,7 +206,7 @@ class TimersViewModel(
     fun refresh() {
         viewModelScope.launch {
             refreshing = true
-            syncManager.syncNow(filters.value.range)
+            syncManager.syncNow(filters.value.range, force = true)
             refreshing = false
         }
     }

@@ -61,7 +61,7 @@ class TimerRepository(
             timerDao.upsert(timer)
             outbox.timerStarted(timer)
         }
-        syncManager.requestSync()
+        syncManager.requestPush()
     }
 
     /**
@@ -84,7 +84,7 @@ class TimerRepository(
                 outbox.timerStopped(stopped)
             }
         }
-        syncManager.requestSync()
+        syncManager.requestPush()
     }
 
     suspend fun create(projectId: String, start: Instant, end: Instant) {
@@ -107,13 +107,19 @@ class TimerRepository(
             timerDao.upsert(timer)
             outbox.timerCreated(timer)
         }
-        syncManager.requestSync()
+        syncManager.requestPush()
     }
 
     suspend fun update(id: String, projectId: String, start: Instant, end: Instant) {
-        db.withTransaction {
+        val changed = db.withTransaction {
             val existing = timerDao.get(id)?.takeUnless { it.deleted } ?: throw DomainException("timer_not_found")
             if (existing.endTime == null) throw DomainException("timer_running")
+            // Saved without a change: nothing to store or send.
+            if (projectId == existing.projectId && start.toEpochMilli() == existing.startTime &&
+                end.toEpochMilli() == existing.endTime
+            ) {
+                return@withTransaction false
+            }
             var updated = existing
             if (projectId != existing.projectId) {
                 val project = projectDao.get(projectId)?.takeUnless { it.deleted }
@@ -137,8 +143,9 @@ class TimerRepository(
             updated = updated.copy(billableAmount = amountOf(updated))
             timerDao.upsert(updated)
             outbox.timerUpdated(updated)
+            true
         }
-        syncManager.requestSync()
+        if (changed) syncManager.requestPush()
     }
 
     suspend fun delete(ids: Collection<String>) {
@@ -153,7 +160,7 @@ class TimerRepository(
                 }
             }
         }
-        syncManager.requestSync()
+        syncManager.requestPush()
     }
 
     /** Checks the rules the server enforces, so an offline entry is not rejected later. */

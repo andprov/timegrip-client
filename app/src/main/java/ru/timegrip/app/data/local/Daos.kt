@@ -97,6 +97,9 @@ interface OutboxDao {
     @Insert
     suspend fun insert(op: OutboxEntity): Long
 
+    @Query("UPDATE outbox SET sent = 1 WHERE seq = :seq")
+    suspend fun markSent(seq: Long)
+
     @Query("SELECT * FROM outbox WHERE seq = :seq")
     suspend fun get(seq: Long): OutboxEntity?
 

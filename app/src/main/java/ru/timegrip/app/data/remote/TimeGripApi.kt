@@ -5,6 +5,7 @@ import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.Headers
 import retrofit2.http.PATCH
@@ -140,6 +141,10 @@ interface TimeGripApi {
 
     @DELETE("timers/{id}")
     suspend fun deleteTimer(@Path("id") id: String)
+
+    /** All or nothing: one missing or running timer and none is deleted. */
+    @HTTP(method = "DELETE", path = "timers", hasBody = true)
+    suspend fun deleteTimers(@Body body: TimerIdsBody)
 
     companion object {
         const val MAX_PAGE_SIZE = 100

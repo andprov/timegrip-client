@@ -34,7 +34,8 @@ class AuthRepository(
 
     suspend fun signIn(email: String, password: String) {
         val tokens = apiCall(json) { api.signIn(SignInBody(email.trim(), password)) }
-        val user = apiCall(json) { api.me("Bearer ${tokens.accessToken}") }.toDomain()
+        val profile = apiCall(json) { api.me("Bearer ${tokens.accessToken}") }
+        val user = profile.toDomain()
 
         // Local data belongs to one account. Signing back into the same one
         // after an expired session keeps changes that were not uploaded yet.
@@ -42,14 +43,14 @@ class AuthRepository(
             wipeLocalData()
             sessionStore.setOwner(user.id)
         }
-        // The profile goes first so the app never shows a signed-in state
-        // with the previous account's profile.
-        sessionStore.saveUser(user)
+        // The profile goes first so the app never shows a signed-in state with the
+        // previous account's profile. Through the engine: it keeps settings still
+        // queued from before the session expired, and marks the profile fresh
+        // before the screens (they appear with the tokens) ask for a first sync.
+        syncEngine.storeUser(profile, signingIn = true)
         sessionStore.saveTokens(tokens.accessToken, tokens.refreshToken)
-        syncEngine.storeUser(apiCall(json) { api.me() })
         sessionStore.user?.let { Locales.apply(it.locale) }
 
-        SyncWorker.schedulePeriodic(context)
         syncManager.requestSync()
     }
 
@@ -69,9 +70,13 @@ class AuthRepository(
     /** Changes that exist only on this device and would be lost by signing out. */
     suspend fun unsyncedChangesCount(): Int = db.outboxDao().count()
 
-    /** Signs out and forgets everything stored for the account on this device. */
-    suspend fun signOut() {
-        sessionStore.refreshToken?.let { refreshToken ->
+    /**
+     * Signs out and forgets everything stored for the account on this device.
+     * [revoke] false: the server has already ended the session (all sessions
+     * revoked, account deleted), so it is not told again.
+     */
+    suspend fun signOut(revoke: Boolean = true) {
+        sessionStore.refreshToken?.takeIf { revoke }?.let { refreshToken ->
             withTimeoutOrNull(5_000) {
                 runCatching { apiCall(json) { api.logout(RefreshBody(refreshToken)) } }
             }

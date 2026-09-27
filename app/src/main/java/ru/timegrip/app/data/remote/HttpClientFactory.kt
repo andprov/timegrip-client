@@ -8,8 +8,10 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import okhttp3.Response
 import okhttp3.Route
 import okhttp3.logging.HttpLoggingInterceptor
@@ -54,6 +56,7 @@ object HttpClientFactory {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
+        val refresher = TokenRefresher(sessionStore, settingsStore, refreshClient)
 
         val client = OkHttpClient.Builder()
             // First, so it sees the final outcome of a call, after token refreshes and retries.
@@ -61,8 +64,8 @@ object HttpClientFactory {
             .addInterceptor(serverClock.interceptor)
             .addInterceptor(baseUrlInterceptor)
             .addInterceptor(userAgentInterceptor)
-            .addInterceptor(AuthInterceptor(sessionStore))
-            .authenticator(TokenAuthenticator(sessionStore, settingsStore, refreshClient))
+            .addInterceptor(AuthInterceptor(sessionStore, refresher))
+            .authenticator(TokenAuthenticator(refresher))
             .apply {
                 if (BuildConfig.DEBUG) {
                     addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
@@ -102,46 +105,79 @@ private class UserAgentInterceptor : Interceptor {
         chain.proceed(chain.request().newBuilder().header("User-Agent", userAgent).build())
 }
 
-private class AuthInterceptor(private val sessionStore: SessionStore) : Interceptor {
+/**
+ * Adds the stored token. One about to run out is refreshed first: sending it
+ * would only earn a 401 and a second round trip (the token lives 15 minutes,
+ * so that is the first request of nearly every app start).
+ */
+private class AuthInterceptor(
+    private val sessionStore: SessionStore,
+    private val refresher: TokenRefresher,
+) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         if (request.header(NO_AUTH_HEADER) != null) {
             return chain.proceed(request.newBuilder().removeHeader(NO_AUTH_HEADER).build())
         }
         if (request.header("Authorization") != null) return chain.proceed(request)
-        val token = sessionStore.accessToken ?: return chain.proceed(request)
+        // No session (it expired, or the user signed out meanwhile): the server
+        // would only answer 401, so the request does not go out.
+        var token = sessionStore.accessToken ?: return sessionExpired(request)
+        val expiresAt = sessionStore.accessExpiresAt
+        if (expiresAt != null && System.currentTimeMillis() >= expiresAt - EXPIRY_MARGIN_MS) {
+            // The server refused the refresh token: the session is over. Any other
+            // failure (no network) sends the request as it is and the 401 path decides.
+            token = refresher.refreshed(token) ?: sessionStore.accessToken ?: return sessionExpired(request)
+        }
         return chain.proceed(request.newBuilder().header("Authorization", "Bearer $token").build())
+    }
+
+    /** What the server would answer, without asking it. */
+    private fun sessionExpired(request: Request): Response = Response.Builder()
+        .request(request)
+        .protocol(Protocol.HTTP_1_1)
+        .code(401)
+        .message("Session expired")
+        .body("""{"detail":"Session expired","code":"session_expired"}""".toResponseBody("application/json".toMediaType()))
+        .build()
+
+    private companion object {
+        const val EXPIRY_MARGIN_MS = 30_000L
+    }
+}
+
+/** Refreshes the session on a 401 and replays the request once. */
+private class TokenAuthenticator(private val refresher: TokenRefresher) : Authenticator {
+    override fun authenticate(route: Route?, response: Response): Request? {
+        val failedAuth = response.request.header("Authorization") ?: return null
+        if (response.priorResponse != null || response.request.header(EXPLICIT_AUTH_HEADER) != null) return null
+        val token = refresher.refreshed(failedAuth.removePrefix("Bearer ")) ?: return null
+        return response.request.newBuilder().header("Authorization", "Bearer $token").build()
     }
 }
 
 /**
- * Refreshes the session on a 401 and replays the request once. Refreshes are
- * serialized: the backend rotates refresh tokens and treats a reused one as
- * stolen, so two parallel refreshes would revoke the session (the web client
- * guards against the same race in api/client.ts).
+ * Trades the refresh token for new tokens. Refreshes are serialized: the
+ * backend rotates refresh tokens and treats a reused one as stolen, so two
+ * parallel refreshes would revoke the session (the web client guards against
+ * the same race in api/client.ts).
  */
-private class TokenAuthenticator(
+private class TokenRefresher(
     private val sessionStore: SessionStore,
     private val settingsStore: SettingsStore,
     private val refreshClient: OkHttpClient,
-) : Authenticator {
+) {
     private val lock = Any()
 
-    override fun authenticate(route: Route?, response: Response): Request? {
-        val failedAuth = response.request.header("Authorization") ?: return null
-        if (response.priorResponse != null || response.request.header(EXPLICIT_AUTH_HEADER) != null) return null
-
-        synchronized(lock) {
-            val current = sessionStore.accessToken
-            // Another request already refreshed while this one was in flight.
-            if (current != null && "Bearer $current" != failedAuth) {
-                return response.request.newBuilder().header("Authorization", "Bearer $current").build()
-            }
-            val refreshToken = sessionStore.refreshToken ?: return null
-            val tokens = refresh(refreshToken) ?: return null
-            sessionStore.saveTokens(tokens.accessToken, tokens.refreshToken)
-            return response.request.newBuilder().header("Authorization", "Bearer ${tokens.accessToken}").build()
-        }
+    /** A token to use instead of [stale]; null when the session cannot be refreshed. */
+    fun refreshed(stale: String): String? = synchronized(lock) {
+        val current = sessionStore.accessToken
+        // Another request already refreshed while this one waited.
+        if (current != null && current != stale) return current
+        val refreshToken = sessionStore.refreshToken ?: return null
+        val tokens = refresh(refreshToken) ?: return null
+        sessionStore.saveTokens(tokens.accessToken, tokens.refreshToken)
+        tokens.accessToken
     }
 
     private fun refresh(refreshToken: String): TokenPairDto? {
