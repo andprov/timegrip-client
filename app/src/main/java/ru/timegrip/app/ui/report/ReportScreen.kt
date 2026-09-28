@@ -414,7 +414,7 @@ private fun GroupHeader(group: ReportGroup, color: String?) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             if (color != null) {
-                ColorDot(color, size = 10.dp)
+                ColorDot(color)
                 Spacer(Modifier.width(8.dp))
             }
             Text(

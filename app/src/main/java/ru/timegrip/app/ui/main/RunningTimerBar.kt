@@ -144,7 +144,7 @@ fun RunningTimerBar() {
                     .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ColorDot(state.runningProject?.color ?: "#9E9E9E", size = 12.dp)
+                ColorDot(state.runningProject?.color ?: "#9E9E9E")
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(

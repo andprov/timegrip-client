@@ -270,7 +270,7 @@ private fun IssueCard(issue: SyncIssue, timeFormat: TimeFormat, onRetry: () -> U
             Text(stringResource(opLabel(issue.opType)), style = MaterialTheme.typography.labelLarge)
             if (issue.projectName != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    issue.projectColor?.let { ColorDot(it, size = 10.dp) }
+                    issue.projectColor?.let { ColorDot(it) }
                     Spacer(Modifier.width(8.dp))
                     Text(issue.projectName, style = MaterialTheme.typography.bodyMedium)
                 }

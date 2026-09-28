@@ -345,7 +345,7 @@ fun ProjectFilterChip(
         label = selected?.name ?: stringResource(R.string.filter_projects),
         active = selected != null || showArchived,
         onClick = { open = true },
-        leading = selected?.let { { ColorDot(it.color, size = 10.dp) } },
+        leading = selected?.let { { ColorDot(it.color) } },
     )
     if (open) {
         val (search, onSearch) = rememberProjectSearch()
@@ -443,7 +443,7 @@ fun ProjectsMultiFilterChip(projects: List<Project>, selectedIds: Set<String>, o
         },
         active = selected.isNotEmpty(),
         onClick = { open = true },
-        leading = selected.singleOrNull()?.let { { ColorDot(it.color, size = 10.dp) } },
+        leading = selected.singleOrNull()?.let { { ColorDot(it.color) } },
     )
     if (open) {
         val (search, onSearch) = rememberProjectSearch()

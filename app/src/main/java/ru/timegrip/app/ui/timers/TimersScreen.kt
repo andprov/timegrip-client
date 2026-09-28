@@ -288,7 +288,7 @@ private fun EntryRow(
             Checkbox(checked = selected, onCheckedChange = null, enabled = !running)
             Spacer(Modifier.width(8.dp))
         }
-        ColorDot(project?.color ?: "#9E9E9E", size = 12.dp)
+        ColorDot(project?.color ?: "#9E9E9E")
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

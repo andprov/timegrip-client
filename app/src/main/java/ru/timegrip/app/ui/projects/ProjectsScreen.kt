@@ -193,7 +193,7 @@ private fun ProjectCard(project: Project, showArchivedBadge: Boolean, onClick: (
     val rate = project.hourlyRate
     PanelCard(Modifier.padding(horizontal = 16.dp), onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            ColorDot(project.color, size = 16.dp)
+            ColorDot(project.color)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
