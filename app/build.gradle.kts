@@ -15,8 +15,8 @@ android {
         applicationId = "ru.timegrip.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 53
-        versionName = "1.4.31"
+        versionCode = 54
+        versionName = "1.4.32"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
