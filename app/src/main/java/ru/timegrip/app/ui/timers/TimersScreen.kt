@@ -169,7 +169,7 @@ fun TimersScreen() {
                         item { ErrorBanner(error, Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
                     }
                     if (state.loaded && state.days.isEmpty()) {
-                        item { MessageCard(stringResource(R.string.no_time_entries), Modifier.padding(horizontal = 16.dp)) }
+                        item { MessageCard(stringResource(R.string.no_time_entries), Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp)) }
                     }
                     state.days.forEach { day ->
                         stickyHeader(key = "day-${day.date}") { DayHeader(day.date, day.totalSeconds) }

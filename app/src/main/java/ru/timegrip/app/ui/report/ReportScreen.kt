@@ -259,10 +259,10 @@ fun ReportScreen() {
                     when {
                         current == null -> Unit
                         current.entries.isEmpty() -> item {
-                            MessageCard(stringResource(R.string.no_time_entries), Modifier.padding(horizontal = 16.dp))
+                            MessageCard(stringResource(R.string.no_time_entries), Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp))
                         }
                         activeColumns.isEmpty() -> item {
-                            MessageCard(stringResource(R.string.pick_column), Modifier.padding(horizontal = 16.dp))
+                            MessageCard(stringResource(R.string.pick_column), Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp))
                         }
                         else -> groups.forEach { group ->
                             if (vm.groupBy != GroupBy.NONE) {
