@@ -191,7 +191,8 @@ private fun StatusFilterChip(value: StatusFilter, onChange: (StatusFilter) -> Un
 @Composable
 private fun ProjectCard(project: Project, showArchivedBadge: Boolean, onClick: () -> Unit) {
     val rate = project.hourlyRate
-    PanelCard(Modifier.padding(horizontal = 16.dp), onClick = onClick) {
+    // The same height as a time entry's card on Timers: the same padding and one line per row.
+    PanelCard(Modifier.padding(horizontal = 16.dp), PaddingValues(horizontal = 16.dp, vertical = 12.dp), onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ColorDot(project.color)
             Spacer(Modifier.width(12.dp))
@@ -201,7 +202,7 @@ private fun ProjectCard(project: Project, showArchivedBadge: Boolean, onClick: (
                         project.name,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium,
-                        maxLines = 2,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )

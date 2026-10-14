@@ -81,6 +81,7 @@ import ru.timegrip.app.domain.formatDateTime
 import ru.timegrip.app.ui.common.Banner
 import ru.timegrip.app.ui.common.LocalAppContainer
 import ru.timegrip.app.ui.common.ErrorBanner
+import ru.timegrip.app.ui.common.FilterBarHeight
 import ru.timegrip.app.ui.common.PanelCard
 import ru.timegrip.app.ui.common.PasswordField
 import ru.timegrip.app.ui.common.UiMessage
@@ -245,10 +246,13 @@ fun AccountScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            // The first card starts level with the filter chips on the other screens: a chip is
+            // 32dp tall, centred in the filter row. The error banner only takes a slot when it is
+            // shown, otherwise the spacing after the empty slot would push the cards down.
+            contentPadding = PaddingValues(start = 16.dp, top = (FilterBarHeight - 32.dp) / 2, end = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item { ErrorBanner(vm.actionError) }
+            vm.actionError?.let { error -> item { ErrorBanner(error) } }
             item {
                 PanelCard(contentPadding = PaddingValues(vertical = 4.dp)) {
                     Column {

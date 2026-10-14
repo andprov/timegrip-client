@@ -1,6 +1,7 @@
 package ru.timegrip.app.ui.timers
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -26,10 +27,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -174,7 +176,7 @@ fun TimersScreen() {
                     state.days.forEach { day ->
                         stickyHeader(key = "day-${day.date}") { DayHeader(day.date, day.totalSeconds) }
                         items(day.entries, key = { it.id }) { entry ->
-                            EntryRow(
+                            EntryCard(
                                 entry = entry,
                                 project = state.projectById[entry.projectId],
                                 timeFormat = timeFormat,
@@ -183,7 +185,6 @@ fun TimersScreen() {
                                 onClick = { if (selecting) vm.toggleSelection(entry) else vm.openEdit(entry) },
                                 onLongClick = { vm.toggleSelection(entry) },
                             )
-                            HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
                 }
@@ -263,9 +264,13 @@ private fun DayHeader(date: LocalDate, totalSeconds: Long) {
     }
 }
 
+/**
+ * One time entry as a card, like a project on Projects, so it reads as something to open and
+ * edit. [PanelCard] only takes a plain tap; this one also takes the long press that selects.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun EntryRow(
+private fun EntryCard(
     entry: TimeEntry,
     project: Project?,
     timeFormat: TimeFormat,
@@ -276,57 +281,69 @@ private fun EntryRow(
 ) {
     val running = entry.isRunning
     val now = rememberNow(enabled = running)
-    val secondary = if (running) LocalExtraColors.current.running else MaterialTheme.colorScheme.onSurfaceVariant
-    Row(
-        Modifier
+    val colors = MaterialTheme.colorScheme
+    val secondary = if (running) LocalExtraColors.current.running else colors.onSurfaceVariant
+    Card(
+        modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(enabled = !running, onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) colors.secondaryContainer else colors.surfaceContainerLowest,
+        ),
+        border = if (selected) BorderStroke(1.dp, colors.primary) else CardDefaults.outlinedCardBorder(),
     ) {
-        if (selecting) {
-            Checkbox(checked = selected, onCheckedChange = null, enabled = !running)
-            Spacer(Modifier.width(8.dp))
-        }
-        ColorDot(project?.color ?: "#9E9E9E")
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    project?.name ?: "—",
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                Spacer(Modifier.width(6.dp))
-                SyncMarkIcon(entry.syncMark)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .combinedClickable(enabled = !running, onClick = onClick, onLongClick = onLongClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (selecting) {
+                Checkbox(checked = selected, onCheckedChange = null, enabled = !running)
+                Spacer(Modifier.width(8.dp))
             }
-            Text(
-                buildString {
-                    append(formatTime(entry.start, timeFormat))
-                    append(" – ")
-                    val end = entry.end
-                    when {
-                        end == null -> append(stringResource(R.string.running))
-                        end.toLocalDate() == entry.start.toLocalDate() -> append(formatTime(end, timeFormat))
-                        else -> append(formatDateTime(end, timeFormat))
-                    }
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = secondary,
-            )
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                formatClock(entry.durationSeconds(now)),
-                style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
-                fontWeight = if (running) FontWeight.Bold else FontWeight.Normal,
-                color = if (running) secondary else MaterialTheme.colorScheme.onSurface,
-            )
-            entry.billableAmount?.let {
-                Text(formatAmount(it), style = MaterialTheme.typography.bodySmall, color = secondary)
+            ColorDot(project?.color ?: "#9E9E9E")
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        project?.name ?: "—",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    SyncMarkIcon(entry.syncMark)
+                }
+                Text(
+                    buildString {
+                        append(formatTime(entry.start, timeFormat))
+                        append(" – ")
+                        val end = entry.end
+                        when {
+                            end == null -> append(stringResource(R.string.running))
+                            end.toLocalDate() == entry.start.toLocalDate() -> append(formatTime(end, timeFormat))
+                            else -> append(formatDateTime(end, timeFormat))
+                        }
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = secondary,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    formatClock(entry.durationSeconds(now)),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = if (running) FontWeight.Bold else FontWeight.Normal,
+                    color = if (running) secondary else MaterialTheme.colorScheme.onSurface,
+                )
+                entry.billableAmount?.let {
+                    Text(formatAmount(it), style = MaterialTheme.typography.bodySmall, color = secondary)
+                }
             }
         }
     }
