@@ -286,7 +286,8 @@ private fun EntryCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            // 6dp above and below make the same 12dp gap between cards as on the other screens.
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) colors.secondaryContainer else colors.surfaceContainerLowest,
         ),
